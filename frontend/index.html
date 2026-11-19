@@ -148,6 +148,37 @@
     </section>
   </main>
 
+  <!-- ADMIN ANALYTICS VIEW -->
+  <main class="workspace hidden" id="analyticsWorkspace">
+    <section class="audit-panel">
+      <h2>Overview</h2>
+      <p class="audit-sub">Usage, retrieval quality, and library composition across the system.</p>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">Queries per day (last 14 days)</div>
+          <div id="chartQueriesPerDay" class="chart-body"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Answer confidence distribution</div>
+          <div id="chartConfidence" class="chart-body"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Queries by role</div>
+          <div id="chartRole" class="chart-body"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Most-queried patients</div>
+          <div id="chartTopPatients" class="chart-body"></div>
+        </div>
+        <div class="chart-card chart-card-wide">
+          <div class="chart-title">Document library composition</div>
+          <div id="chartDocTypes" class="chart-body"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
   <!-- ADMIN USERS VIEW -->
   <main class="workspace hidden" id="usersWorkspace">
     <section class="audit-panel">

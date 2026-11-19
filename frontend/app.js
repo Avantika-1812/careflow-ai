@@ -117,6 +117,12 @@ function renderTopNav() {
   nav.appendChild(chatBtn);
 
   if (state.user.role === 'admin') {
+    const overviewBtn = document.createElement('button');
+    overviewBtn.textContent = 'Overview';
+    overviewBtn.className = state.view === 'analytics' ? 'active' : '';
+    overviewBtn.onclick = () => switchView('analytics');
+    nav.appendChild(overviewBtn);
+
     const auditBtn = document.createElement('button');
     auditBtn.textContent = 'Audit Log';
     auditBtn.className = state.view === 'audit' ? 'active' : '';
@@ -137,8 +143,10 @@ function switchView(view) {
   el('chatWorkspace').classList.toggle('hidden', view !== 'chat');
   el('auditWorkspace').classList.toggle('hidden', view !== 'audit');
   el('usersWorkspace').classList.toggle('hidden', view !== 'users');
+  el('analyticsWorkspace').classList.toggle('hidden', view !== 'analytics');
   if (view === 'audit') loadAuditLog();
   if (view === 'users') loadUsers();
+  if (view === 'analytics') loadAnalytics();
 }
 
 // ---------- Patients ----------
@@ -560,6 +568,78 @@ async function loadAuditLog() {
       `;
       tbody.appendChild(tr);
     }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ---------- Admin analytics ----------
+const CHART_COLOR = '#0d5c56';
+const CONFIDENCE_COLORS = { high: '#1c6b43', medium: '#946600', low: '#a3291f', unknown: '#5e6a63' };
+
+function svgBarChart(rows, { labelKey, valueKey, color = CHART_COLOR, maxBars = 8 }) {
+  rows = rows.slice(0, maxBars);
+  if (!rows.length) return '<div class="chart-empty">No data yet.</div>';
+  const max = Math.max(...rows.map(r => r[valueKey]), 1);
+  const barHeight = 20, gap = 10, labelWidth = 140, chartWidth = 220;
+  const height = rows.length * (barHeight + gap);
+  let bars = '';
+  rows.forEach((r, i) => {
+    const y = i * (barHeight + gap);
+    const w = Math.max((r[valueKey] / max) * chartWidth, 2);
+    const barColor = typeof color === 'function' ? color(r) : color;
+    const label = escapeHtml(String(r[labelKey]).slice(0, 20));
+    bars += `<text x="0" y="${y + barHeight / 2 + 4}" font-size="11" fill="#1c2420">${label}</text>
+      <rect x="${labelWidth}" y="${y}" width="${w}" height="${barHeight}" fill="${barColor}" rx="2" />
+      <text x="${labelWidth + w + 6}" y="${y + barHeight / 2 + 4}" font-size="11" fill="#5e6a63">${r[valueKey]}</text>`;
+  });
+  return `<svg viewBox="0 0 ${labelWidth + chartWidth + 36} ${height}" width="100%" height="${height}">${bars}</svg>`;
+}
+
+function svgTimeSeries(rows, { labelKey = 'day', valueKey = 'n', color = CHART_COLOR } = {}) {
+  if (!rows.length) return '<div class="chart-empty">No queries in the last 14 days.</div>';
+  const max = Math.max(...rows.map(r => r[valueKey]), 1);
+  const barWidth = 22, gap = 8, chartHeight = 110;
+  const width = rows.length * (barWidth + gap);
+  let bars = '';
+  rows.forEach((r, i) => {
+    const x = i * (barWidth + gap);
+    const h = Math.max((r[valueKey] / max) * chartHeight, 2);
+    const day = String(r[labelKey]).slice(5).replace('-', '/');
+    bars += `<text x="${x + barWidth / 2}" y="${chartHeight - h - 5}" font-size="10" fill="#1c2420" text-anchor="middle">${r[valueKey]}</text>
+      <rect x="${x}" y="${chartHeight - h}" width="${barWidth}" height="${h}" fill="${color}" rx="2" />
+      <text x="${x + barWidth / 2}" y="${chartHeight + 16}" font-size="9" fill="#5e6a63" text-anchor="middle">${day}</text>`;
+  });
+  return `<svg viewBox="0 0 ${width + 10} ${chartHeight + 30}" width="100%" height="${chartHeight + 30}">${bars}</svg>`;
+}
+
+function renderStatGrid(totals) {
+  const stats = [
+    { label: 'Total queries', value: totals.total_queries },
+    { label: 'Patients', value: totals.total_patients },
+    { label: 'Documents indexed', value: totals.total_documents },
+    { label: 'Active users', value: totals.active_users },
+  ];
+  el('statGrid').innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="stat-value">${s.value}</div>
+      <div class="stat-label">${escapeHtml(s.label)}</div>
+    </div>
+  `).join('');
+}
+
+async function loadAnalytics() {
+  try {
+    const data = await api('/admin/analytics');
+    renderStatGrid(data.totals);
+    el('chartQueriesPerDay').innerHTML = svgTimeSeries(data.queries_per_day);
+    el('chartConfidence').innerHTML = svgBarChart(
+      [...data.confidence_breakdown].sort((a, b) => b.n - a.n),
+      { labelKey: 'confidence', valueKey: 'n', color: (r) => CONFIDENCE_COLORS[r.confidence] || CHART_COLOR },
+    );
+    el('chartRole').innerHTML = svgBarChart(data.role_breakdown, { labelKey: 'role', valueKey: 'n' });
+    el('chartTopPatients').innerHTML = svgBarChart(data.top_patients, { labelKey: 'name', valueKey: 'n' });
+    el('chartDocTypes').innerHTML = svgBarChart(data.doc_type_breakdown, { labelKey: 'doc_type', valueKey: 'n', maxBars: 10 });
   } catch (err) {
     console.error(err);
   }
