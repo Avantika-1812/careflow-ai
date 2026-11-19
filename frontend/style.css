@@ -195,6 +195,13 @@ input, textarea, select { font-family: inherit; font-size: 13.5px; }
   background: var(--panel-alt);
 }
 .patient-list, .conversation-list { display: flex; flex-direction: column; gap: 1px; padding-bottom: 10px; }
+.patient-list {
+  max-height: 38vh; overflow-y: auto;
+  /* Bounded + independently scrollable: a large imported dataset (thousands of patients)
+     must never be able to push the Query Log section (or anything else in the sidebar)
+     off-screen just by being long. */
+}
+.patient-list-hint { font-size: 10.5px; color: var(--muted); padding: 8px 2px 2px; font-style: italic; }
 .patient-item, .conversation-item {
   padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px;
   display: flex; flex-direction: column; gap: 1px; border-left: 2px solid transparent;

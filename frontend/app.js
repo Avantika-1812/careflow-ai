@@ -3,6 +3,7 @@ const state = {
   token: localStorage.getItem('careflow_token') || null,
   user: null,
   patients: [],
+  patientsTotal: 0,
   selectedPatientId: null,
   conversations: [],
   currentConversationId: null,
@@ -154,7 +155,9 @@ function switchView(view) {
 async function loadPatients(q) {
   try {
     const qs = q ? `?q=${encodeURIComponent(q)}` : '';
-    state.patients = await api(`/patients${qs}`);
+    const data = await api(`/patients${qs}`);
+    state.patients = data.items;
+    state.patientsTotal = data.total;
     renderPatientList();
   } catch (err) {
     console.error(err);
@@ -174,6 +177,12 @@ function renderPatientList() {
     div.innerHTML = `<span class="patient-item-name">${escapeHtml(p.name)}</span><span class="patient-item-mrn">${escapeHtml(p.mrn)}${p.dob ? ' &middot; DOB ' + escapeHtml(p.dob) : ''}</span>`;
     div.onclick = () => startConversation(p.id);
     container.appendChild(div);
+  }
+  if (state.patientsTotal > state.patients.length) {
+    const hint = document.createElement('div');
+    hint.className = 'patient-list-hint';
+    hint.textContent = `Showing ${state.patients.length} of ${state.patientsTotal} — search to narrow down`;
+    container.appendChild(hint);
   }
 }
 

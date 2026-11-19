@@ -123,17 +123,29 @@ def me(user: dict = Depends(auth.get_current_user)):
 
 # ---------- Patients ----------
 
+PATIENT_LIST_LIMIT = 100
+
+
 @app.get("/patients")
 def list_patients(user: dict = Depends(auth.require_role("clinician", "admin")), q: str | None = None):
+    """Capped + searched, not a full dump: with a large imported dataset (thousands of
+    patients), returning everything unfiltered made the sidebar unusable -- thousands of DOM
+    nodes, and nothing else in the sidebar reachable without scrolling past all of them. The
+    sidebar's search box (debounced, hits this same endpoint) is the intended way to narrow
+    down to one patient; this endpoint only ever returns a bounded page plus a total count so
+    the UI can say "showing X of Y"."""
     with db.session() as conn:
         if q:
-            rows = conn.execute(
-                "SELECT * FROM patients WHERE name ILIKE %s OR mrn ILIKE %s ORDER BY name",
-                (f"%{q}%", f"%{q}%"),
-            ).fetchall()
+            where = "WHERE name ILIKE %s OR mrn ILIKE %s"
+            params = (f"%{q}%", f"%{q}%")
         else:
-            rows = conn.execute("SELECT * FROM patients ORDER BY name").fetchall()
-    return [dict(r) for r in rows]
+            where = ""
+            params = ()
+        total = conn.execute(f"SELECT count(*) AS c FROM patients {where}", params).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT * FROM patients {where} ORDER BY name LIMIT %s", params + (PATIENT_LIST_LIMIT,)
+        ).fetchall()
+    return {"items": [dict(r) for r in rows], "total": total}
 
 
 @app.post("/patients")
