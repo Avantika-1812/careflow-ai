@@ -34,6 +34,12 @@ services:
       # whether the app runs in Docker or locally via venv -- these must never diverge,
       # since document metadata lives in Postgres (shared) but vectors live here.
       - ./data:/app/data
+      # Chroma's embedding model (~80MB) downloads to here on first use; without persisting
+      # it, every container recreate re-downloads it from scratch and the first query after
+      # any rebuild hangs for ~30-60s. Named volume (not bind mount) since it's just a cache,
+      # not something that needs to be inspected or shared with a local non-Docker run.
+      - careflow_model_cache:/root/.cache
 
 volumes:
   careflow_pgdata:
+  careflow_model_cache:

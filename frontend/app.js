@@ -372,20 +372,66 @@ el('chatForm').addEventListener('submit', async (e) => {
   el('sendBtn').disabled = true;
 
   const container = el('chatMessages');
+
+  // Live-streaming assistant node: built once, updated in place as tokens arrive.
+  const liveMsg = renderMessage({ role: 'assistant', content: '', sources: [], confidence: null });
+  const liveBubble = liveMsg.querySelector('.msg-bubble');
   const typing = document.createElement('div');
   typing.className = 'typing-indicator';
   typing.textContent = 'CareFlow AI is thinking...';
-  container.appendChild(typing);
+  liveMsg.appendChild(typing);
+  container.appendChild(liveMsg);
   container.scrollTop = container.scrollHeight;
 
+  let fullAnswer = '';
+  let sources = [];
+  let confidence = null;
+  let firstToken = true;
+
   try {
-    const result = await api(`/conversations/${state.currentConversationId}/messages`, {
+    const res = await fetch(`/conversations/${state.currentConversationId}/messages`, {
       method: 'POST',
-      body: { query },
+      headers: { 'Authorization': `Bearer ${state.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
     });
+    if (!res.ok || !res.body) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `Request failed (${res.status})`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        const event = JSON.parse(part.slice(6));
+        if (event.type === 'sources') {
+          sources = event.sources;
+        } else if (event.type === 'token') {
+          if (firstToken) { typing.remove(); firstToken = false; }
+          fullAnswer += event.text;
+          liveBubble.textContent = fullAnswer;
+          container.scrollTop = container.scrollHeight;
+        } else if (event.type === 'done') {
+          fullAnswer = event.answer;
+          confidence = event.confidence;
+          sources = event.sources || sources;
+        }
+      }
+    }
+
     typing.remove();
-    state.messages.push({ role: 'assistant', content: result.answer, sources: result.sources, confidence: result.confidence });
-    renderMessages();
+    const finalMsg = { role: 'assistant', content: fullAnswer, sources, confidence };
+    state.messages.push(finalMsg);
+    liveMsg.replaceWith(renderMessage(finalMsg));
+
     const idx = state.conversations.findIndex(c => c.id === state.currentConversationId);
     if (idx > -1) {
       const [c] = state.conversations.splice(idx, 1);
@@ -394,8 +440,9 @@ el('chatForm').addEventListener('submit', async (e) => {
     }
   } catch (err) {
     typing.remove();
-    state.messages.push({ role: 'assistant', content: `Error: ${err.message}`, sources: [], confidence: null });
-    renderMessages();
+    const errMsg = { role: 'assistant', content: `Error: ${err.message}`, sources: [], confidence: null };
+    state.messages.push(errMsg);
+    liveMsg.replaceWith(renderMessage(errMsg));
   } finally {
     el('sendBtn').disabled = false;
   }

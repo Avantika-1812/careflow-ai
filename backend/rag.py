@@ -131,28 +131,58 @@ def _role_can_access(allowed_roles_csv: str, role: str) -> bool:
     return role in allowed_roles_csv.split(",")
 
 
-def retrieve(query: str, role: str, patient_db_id: int | None, top_k: int = config.TOP_K) -> list[dict]:
-    """Retrieve relevant chunks, filtered by role and scoped to a patient (plus global docs)."""
-    fetch_n = max(top_k * 4, 16)
-    results = _collection.query(query_texts=[query], n_results=fetch_n)
-
-    hits = []
+def _query_scoped(query: str, where: dict, n_results: int) -> list[dict]:
+    """Run one Chroma similarity search restricted to `where`, returning raw hit dicts."""
+    collection_size = _collection.count()
+    if collection_size == 0:
+        return []
+    results = _collection.query(
+        query_texts=[query], n_results=min(n_results, collection_size), where=where,
+    )
     docs = results.get("documents", [[]])[0]
     metas = results.get("metadatas", [[]])[0]
     distances = results.get("distances", [[]])[0]
+    return [{"text": d, "metadata": m, "distance": dist} for d, m, dist in zip(docs, metas, distances)]
 
-    for doc, meta, dist in zip(docs, metas, distances):
-        if not _role_can_access(meta.get("allowed_roles", ""), role):
-            continue
-        doc_patient_id = meta.get("patient_id") or 0
-        is_global = doc_patient_id == 0
-        if not is_global and doc_patient_id != patient_db_id:
-            continue
-        hits.append({"text": doc, "metadata": meta, "distance": dist})
-        if len(hits) >= top_k:
-            break
 
+def retrieve(query: str, role: str, patient_db_id: int | None, top_k: int = config.TOP_K) -> list[dict]:
+    """Retrieve relevant chunks, filtered by role and scoped to a patient (plus global docs).
+
+    Patient-specific and global documents are queried *separately* (via Chroma's `where`
+    filter) rather than with one unscoped top-K search across the whole collection. With a
+    large shared reference library (e.g. MTSamples) indexed alongside a handful of chunks per
+    patient, a single flat query lets the reference library's sheer volume crowd the patient's
+    own records out of the candidate pool entirely before role/patient filtering even applies --
+    a query about a specific patient could silently retrieve zero of that patient's documents.
+
+    Separate queries alone aren't enough, though: raw embedding distance isn't reliable enough
+    to then merge-and-sort the two pools together, because long, narrative reference documents
+    can score as more "semantically dense" for a generic query than a patient's own terse
+    structured records -- so pure distance-sort can *still* crowd the patient out entirely
+    (confirmed empirically: it did). Since a patient-scoped conversation is, by definition,
+    about that patient, we instead reserve the majority of slots for patient-specific hits
+    whenever a patient is in scope, filling only the remainder with the best global candidates
+    (so guidelines/reference material can still surface alongside patient data, just not
+    displace it).
+    """
+    global_allowed = _retrieve_scope(query, role, {"patient_id": 0}, top_k * 2)
+
+    if patient_db_id is None:
+        return global_allowed[:top_k]
+
+    patient_allowed = _retrieve_scope(query, role, {"patient_id": patient_db_id}, top_k * 2)
+
+    patient_slots = min(len(patient_allowed), max(top_k - 2, (top_k + 1) // 2))
+    hits = patient_allowed[:patient_slots]
+    hits += global_allowed[: top_k - len(hits)]
     return hits
+
+
+def _retrieve_scope(query: str, role: str, where: dict, fetch_n: int) -> list[dict]:
+    candidates = _query_scoped(query, where, fetch_n)
+    allowed = [c for c in candidates if _role_can_access(c["metadata"].get("allowed_roles", ""), role)]
+    allowed.sort(key=lambda c: c["distance"])
+    return allowed
 
 
 def _format_sources(hits: list[dict]) -> list[dict]:
@@ -209,34 +239,36 @@ clinical workflow.
 """
 
 
-def generate_answer(
-    query: str,
-    role: str,
-    patient_db_id: int | None,
-    history: list[dict] | None = None,
-) -> dict:
+def _prepare_turn(query: str, role: str, patient_db_id: int | None, history: list[dict] | None):
+    """Shared setup for both the streaming and non-streaming generation paths: retrieve,
+    and either return a canned short-circuit answer (no API key / no hits) or a ready-to-send
+    messages list + context_text (needed afterwards for grounding) + formatted sources."""
     hits = retrieve(query, role, patient_db_id)
 
     if _groq_client is None:
         return {
-            "answer": (
-                "CareFlow AI is not fully configured: no GROQ_API_KEY was found. "
-                "Get a free key at console.groq.com and set it in your .env file to enable "
-                "answer generation. Retrieval is still working -- see 'sources' below."
-            ),
-            "sources": _format_sources(hits),
-            "confidence": "low",
+            "short_circuit": {
+                "answer": (
+                    "CareFlow AI is not fully configured: no GROQ_API_KEY was found. "
+                    "Get a free key at console.groq.com and set it in your .env file to enable "
+                    "answer generation. Retrieval is still working -- see 'sources' below."
+                ),
+                "sources": _format_sources(hits),
+                "confidence": "low",
+            }
         }
 
     if not hits:
         return {
-            "answer": (
-                "I couldn't find any authorized documents relevant to that query. "
-                "This may be due to your access role, the selected patient, or the "
-                "information may not be in the indexed knowledge base."
-            ),
-            "sources": [],
-            "confidence": "low",
+            "short_circuit": {
+                "answer": (
+                    "I couldn't find any authorized documents relevant to that query. "
+                    "This may be due to your access role, the selected patient, or the "
+                    "information may not be in the indexed knowledge base."
+                ),
+                "sources": [],
+                "confidence": "low",
+            }
         }
 
     context_blocks = []
@@ -250,17 +282,72 @@ def generate_answer(
         messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": f"CONTEXT:\n{context_text}\n\nQUESTION: {query}"})
 
+    return {"messages": messages, "context_text": context_text, "sources": _format_sources(hits)}
+
+
+def generate_answer(
+    query: str,
+    role: str,
+    patient_db_id: int | None,
+    history: list[dict] | None = None,
+) -> dict:
+    prep = _prepare_turn(query, role, patient_db_id, history)
+    if "short_circuit" in prep:
+        return prep["short_circuit"]
+
     response = _groq_client.chat.completions.create(
         model=config.MODEL_NAME,
         max_tokens=1024,
-        messages=messages,
+        messages=prep["messages"],
     )
 
     answer_text = response.choices[0].message.content
-    confidence = score_grounding(answer_text, context_text)
+    confidence = score_grounding(answer_text, prep["context_text"])
 
     return {
         "answer": answer_text,
-        "sources": _format_sources(hits),
+        "sources": prep["sources"],
         "confidence": confidence,
     }
+
+
+def generate_answer_stream(
+    query: str,
+    role: str,
+    patient_db_id: int | None,
+    history: list[dict] | None = None,
+):
+    """Generator version for token-by-token streaming over SSE. Yields dicts:
+      {"type": "sources", "sources": [...]}          -- once, immediately
+      {"type": "token", "text": "..."}                -- repeatedly, as tokens arrive
+      {"type": "done", "answer": "...", "confidence": "high"}  -- once, at the end
+
+    The caller (app.py) is responsible for persisting the assembled answer + confidence
+    after the "done" event -- this function only generates, it never touches the database.
+    """
+    prep = _prepare_turn(query, role, patient_db_id, history)
+    if "short_circuit" in prep:
+        sc = prep["short_circuit"]
+        yield {"type": "sources", "sources": sc["sources"]}
+        yield {"type": "token", "text": sc["answer"]}
+        yield {"type": "done", "answer": sc["answer"], "confidence": sc["confidence"]}
+        return
+
+    yield {"type": "sources", "sources": prep["sources"]}
+
+    stream = _groq_client.chat.completions.create(
+        model=config.MODEL_NAME,
+        max_tokens=1024,
+        messages=prep["messages"],
+        stream=True,
+    )
+
+    full_answer = ""
+    for chunk in stream:
+        delta = chunk.choices[0].delta.content
+        if delta:
+            full_answer += delta
+            yield {"type": "token", "text": delta}
+
+    confidence = score_grounding(full_answer, prep["context_text"])
+    yield {"type": "done", "answer": full_answer, "confidence": confidence}

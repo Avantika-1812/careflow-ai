@@ -3,6 +3,7 @@ import json
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pypdf import PdfReader
@@ -295,6 +296,9 @@ def list_messages(conversation_id: int, user: dict = Depends(auth.get_current_us
 
 @app.post("/conversations/{conversation_id}/messages")
 def post_message(conversation_id: int, req: MessageCreate, user: dict = Depends(auth.get_current_user)):
+    """Streams the assistant's answer token-by-token over Server-Sent Events. The user's
+    message is persisted immediately; the assistant's message + audit log entry are persisted
+    once streaming completes, inside the same generator (not a separate request)."""
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="Query must not be empty.")
 
@@ -311,28 +315,81 @@ def post_message(conversation_id: int, req: MessageCreate, user: dict = Depends(
             (conversation_id, req.query),
         )
 
-        result = rag.generate_answer(req.query, user["role"], conv["patient_id"], history)
+    def event_stream():
+        sources = []
+        for event in rag.generate_answer_stream(req.query, user["role"], conv["patient_id"], history):
+            if event["type"] == "sources":
+                sources = event["sources"]
+            elif event["type"] == "done":
+                with db.session() as conn2:
+                    conn2.execute(
+                        """INSERT INTO messages (conversation_id, role, content, sources_json, confidence)
+                           VALUES (%s, 'assistant', %s, %s, %s)""",
+                        (conversation_id, event["answer"], json.dumps(sources), event["confidence"]),
+                    )
+                    retrieved_doc_ids = [s["document_id"] for s in sources]
+                    conn2.execute(
+                        """INSERT INTO audit_logs (user_id, username, role, patient_id, query, retrieved_doc_ids, confidence)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                        (
+                            user["id"], user["username"], user["role"], conv["patient_id"],
+                            req.query, json.dumps(retrieved_doc_ids), event["confidence"],
+                        ),
+                    )
+                event = {**event, "sources": sources}
+            yield f"data: {json.dumps(event)}\n\n"
 
-        conn.execute(
-            """INSERT INTO messages (conversation_id, role, content, sources_json, confidence)
-               VALUES (%s, 'assistant', %s, %s, %s)""",
-            (conversation_id, result["answer"], json.dumps(result["sources"]), result["confidence"]),
-        )
-
-        retrieved_doc_ids = [s["document_id"] for s in result["sources"]]
-        conn.execute(
-            """INSERT INTO audit_logs (user_id, username, role, patient_id, query, retrieved_doc_ids, confidence)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (
-                user["id"], user["username"], user["role"], conv["patient_id"],
-                req.query, json.dumps(retrieved_doc_ids), result["confidence"],
-            ),
-        )
-
-    return result
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 # ---------- Admin ----------
+
+@app.get("/admin/analytics")
+def analytics(user: dict = Depends(auth.require_role("admin"))):
+    with db.session() as conn:
+        totals = conn.execute(
+            """SELECT
+                 (SELECT count(*) FROM audit_logs) AS total_queries,
+                 (SELECT count(*) FROM patients) AS total_patients,
+                 (SELECT count(*) FROM documents) AS total_documents,
+                 (SELECT count(DISTINCT user_id) FROM audit_logs) AS active_users"""
+        ).fetchone()
+
+        queries_per_day = conn.execute(
+            """SELECT date_trunc('day', created_at)::date AS day, count(*) AS n
+               FROM audit_logs
+               WHERE created_at >= now() - interval '14 days'
+               GROUP BY 1 ORDER BY 1"""
+        ).fetchall()
+
+        confidence_breakdown = conn.execute(
+            """SELECT coalesce(confidence, 'unknown') AS confidence, count(*) AS n
+               FROM audit_logs GROUP BY 1"""
+        ).fetchall()
+
+        role_breakdown = conn.execute(
+            "SELECT role, count(*) AS n FROM audit_logs GROUP BY 1 ORDER BY 2 DESC"
+        ).fetchall()
+
+        top_patients = conn.execute(
+            """SELECT p.name, count(*) AS n FROM audit_logs a
+               JOIN patients p ON p.id = a.patient_id
+               GROUP BY p.name ORDER BY n DESC LIMIT 6"""
+        ).fetchall()
+
+        doc_type_breakdown = conn.execute(
+            "SELECT doc_type, count(*) AS n FROM documents GROUP BY 1 ORDER BY 2 DESC"
+        ).fetchall()
+
+    return {
+        "totals": dict(totals),
+        "queries_per_day": [{"day": str(r["day"]), "n": r["n"]} for r in queries_per_day],
+        "confidence_breakdown": [dict(r) for r in confidence_breakdown],
+        "role_breakdown": [dict(r) for r in role_breakdown],
+        "top_patients": [dict(r) for r in top_patients],
+        "doc_type_breakdown": [dict(r) for r in doc_type_breakdown],
+    }
+
 
 @app.get("/admin/audit-logs")
 def audit_logs(user: dict = Depends(auth.require_role("admin")), limit: int = 100, offset: int = 0):
