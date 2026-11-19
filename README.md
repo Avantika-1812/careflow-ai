@@ -31,6 +31,12 @@ on its free tier — fine for development, but swap it for a BAA-covered provide
 
 ## Features
 
+- **Multi-tenant**: any hospital can self-serve sign up (landing page → "Start free trial") and
+  gets a fully isolated organization — its own patients, users, conversations, and audit log,
+  invisible to every other tenant on the platform. Isolation is enforced at the query layer
+  (every patient-scoped endpoint filters by `organization_id`), not just hidden in the UI. A
+  shared reference library (hospital guidelines, the MTSamples clinical corpus) is available to
+  every tenant by design — included value, not per-tenant data.
 - **Login + roles**: JWT-based auth with role-gated access (clinician, admin, staff) — patient
   list, documents, conversations, and the admin audit log all respect it.
 - **User management**: admins create accounts and assign roles from the Users tab — no self-signup.
@@ -67,7 +73,7 @@ backend/
   app.py                FastAPI app: auth, patients, documents, conversations, admin, rate
                          limiting, security headers
 frontend/
-  index.html, style.css, app.js    Vanilla-JS dashboard SPA (login, chat, docs, admin)
+  index.html, style.css, app.js    Vanilla-JS SPA (landing, signup, login, chat, docs, admin)
 data/                  Chroma vector store + dev-only JWT secret (created at runtime, gitignored)
 docker-compose.yml      Postgres + app, for a one-command local/real deployment
 Dockerfile              App container image
@@ -80,6 +86,21 @@ Every document row has `allowed_roles` (e.g. `clinician,admin`) and an optional 
 if the caller's role is in `allowed_roles` **and** the chunk is either global or belongs to the
 conversation's patient. A `staff` conversation can never have a `patient_id`, so staff queries are
 structurally incapable of seeing patient data — not just hidden in the UI.
+
+### How multi-tenancy works
+
+Every organization gets an `organizations` row; `users` and `patients` each carry an
+`organization_id`. The one chokepoint every client-supplied `patient_id` passes through is
+`_get_org_patient()` in `app.py` — it returns a patient only if it belongs to the caller's
+organization, otherwise 404. Every endpoint that accepts a `patient_id` (conversation creation,
+document upload/listing, patient lookup) goes through it, so there's a single place to audit for
+cross-tenant leaks rather than a scattered check per endpoint. Documents and conversations don't
+carry `organization_id` directly — they inherit scoping transitively through the patient (or
+are global/shared, `patient_id IS NULL`, available to everyone). Signing up
+(`POST /signup`) creates a new organization and its first admin account atomically; an existing
+Postgres database upgraded to this schema gets all of its pre-existing users/patients backfilled
+into a single default organization (`db.ensure_default_organization()`), so this is a safe
+in-place upgrade, not a breaking migration.
 
 ### How the grounding check works
 
@@ -236,6 +257,17 @@ catches the *empty* case, not this *stale* case.)
 
 ## Known limitations / what's still missing before production
 
+- **No billing/plans enforcement**: organizations have a `plan` column (defaults to `'trial'`)
+  but nothing reads it yet — every tenant currently has unlimited usage. Real monetization needs
+  payment processing wired up deliberately (not something to bolt on casually).
+- **Usernames are globally unique**, not per-organization — two hospitals can't both have a user
+  named `admin`. Real multi-tenant products usually scope login by email or an org-slug/subdomain
+  instead; this was a deliberate simplification to avoid redesigning the login flow.
+- **No cross-tenant/platform-admin panel**: there's no "admin of admins" view to see all
+  organizations, suspend one, or manage the shared reference library — only the org-scoped admin
+  role exists today.
+- **No email verification or password reset** on signup — the self-serve flow trusts whatever
+  username/email is entered.
 - **Auth**: PBKDF2 + JWT is reasonable, but a real deployment needs real identity (SSO/EHR
   integration, MFA), not hardcoded demo accounts.
 - **LLM provider**: Groq's free tier has no BAA. Swap to a HIPAA-eligible provider (Azure OpenAI,
