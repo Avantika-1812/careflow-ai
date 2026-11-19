@@ -118,7 +118,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # set GROQ_API_KEY in .env
-docker compose up -d db          # Postgres only, exposed on localhost:5432
+docker compose up -d db          # Postgres only, exposed on localhost:5433
 uvicorn backend.app:app --reload --port 8000
 ```
 

@@ -12,7 +12,7 @@ CHROMA_DIR = ROOT_DIR / "data" / "chroma"
 
 ENV = os.environ.get("CAREFLOW_ENV", "development")  # "development" | "production"
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://careflow:careflow@localhost:5432/careflow")
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://careflow:careflow@localhost:5433/careflow")
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 MODEL_NAME = os.environ.get("CAREFLOW_MODEL", "openai/gpt-oss-20b")
