@@ -44,6 +44,11 @@ on its free tier — fine for development, but swap it for a BAA-covered provide
 - **Grounding / confidence check**: a deterministic high/medium/low badge on every answer, based
   on how much of the answer's wording is actually traceable to the retrieved context.
 - **Audit log**: every query, by whom, which role, which patient, which documents were retrieved.
+- **Analytics dashboard** (admin → Overview): query volume over time, confidence distribution,
+  queries by role, most-queried patients, document library composition — built from the same
+  audit log data, visualized instead of left as a raw table.
+- **Streaming responses**: answers appear token-by-token (Server-Sent Events) instead of waiting
+  for the full completion.
 - **Rate limiting, security headers, upload size caps**: see "Security hardening" below.
 
 ## Architecture
