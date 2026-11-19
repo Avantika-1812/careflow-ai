@@ -27,142 +27,98 @@ html, body {
   margin: 0;
 }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: "Segoe UI", Tahoma, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
-  font-size: 13.5px;
+  font-size: 13px;
 }
 .hidden { display: none !important; }
 button { font-family: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; font-size: 13.5px; }
 
 /* ---------- Login ---------- */
+/* Deliberately plain: a real hospital intranet login doesn't sell itself. No hero panel,
+   no feature bullets, no marketing copy -- just a small boxed form on a gray background,
+   the way IT-department-built internal tools actually look. */
 .login-screen {
   height: 100vh;
   display: flex;
-  background: var(--bg);
-}
-.login-hero {
-  flex: 1;
-  max-width: 440px;
-  background: var(--ink);
-  color: #b9c9c4;
-  padding: 0;
-  display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  border-right: 3px solid var(--accent);
-}
-.login-hero-top {
-  display: flex; align-items: center; gap: 10px;
-  padding: 22px 28px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.login-hero-name { color: white; font-weight: 700; font-size: 15px; letter-spacing: 0.01em; }
-.accent-dot { color: #4fa89c; }
-.login-hero-body { padding: 28px; }
-.login-hero-body h2 {
-  color: white; font-size: 20px; line-height: 1.4; margin: 0 0 14px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.02em;
-}
-.login-hero-body p { font-size: 13px; line-height: 1.65; color: #92a39d; margin: 0 0 20px; }
-.login-hero-points { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; border-top: 1px solid rgba(255,255,255,0.1); }
-.login-hero-points li {
-  font-size: 12.5px; color: #c3d1cc; padding: 10px 0 10px 18px; position: relative;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.login-hero-points li::before {
-  content: '\2014'; position: absolute; left: 0; top: 10px; color: var(--accent-dark); color: #4fa89c; font-size: 12px;
-}
-.login-hero-foot {
-  font-size: 11px; color: #6b7d76; padding: 16px 28px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-
-.login-form-panel {
-  flex: 1;
-  background: var(--bg);
-  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  background: #dfe2e0;
+  gap: 14px;
 }
-.login-card {
-  width: 360px;
+.login-box {
+  width: 320px;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 32px;
+  border: 1px solid #b7bdb9;
+  box-shadow: 1px 1px 0 #b7bdb9;
 }
-.login-card h1 {
-  margin: 0 0 4px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: var(--ink);
+.login-box-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px;
+  background: var(--panel-alt);
+  border-bottom: 1px solid var(--border);
 }
-.login-sub { margin: 0 0 22px; font-size: 12.5px; color: var(--muted); }
+.login-box-title { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.accent-dot { color: var(--accent); }
+.login-box-subtitle { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
 .brand-mark {
-  width: 34px; height: 34px;
+  width: 26px; height: 26px;
   background: var(--accent);
   color: white;
-  border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.brand-mark svg { width: 17px; height: 17px; }
-.brand-mark.small { width: 26px; height: 26px; }
-.brand-mark.small svg { width: 14px; height: 14px; }
+.brand-mark svg { width: 14px; height: 14px; }
 
+#loginForm { padding: 16px; }
 #loginForm label {
-  display: block; font-size: 11px; color: var(--muted); margin: 14px 0 5px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.04em;
+  display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px; font-weight: 600;
 }
 #loginForm input {
   width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--panel-alt);
+  padding: 6px 8px;
+  border: 1px solid #a9afab;
+  background: white;
+  font-size: 12.5px;
 }
-#loginForm input:focus { outline: none; border-color: var(--accent); background: var(--panel); }
+#loginForm input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 #loginBtn {
   width: 100%;
-  margin-top: 22px;
+  margin-top: 16px;
   background: var(--accent);
   color: white;
-  border: none;
-  padding: 11px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  border: 1px solid var(--accent-dark);
+  padding: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 #loginBtn:hover { background: var(--accent-dark); }
 .form-error {
   margin-top: 10px;
   color: var(--danger);
-  font-size: 12.5px;
+  font-size: 11.5px;
   background: #fbebe9;
   border: 1px solid #ecc6c1;
-  border-left: 3px solid var(--danger);
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  padding: 6px 8px;
 }
-.demo-creds {
-  margin-top: 22px;
-  padding-top: 16px;
+.login-notice {
+  font-size: 10px; line-height: 1.5; color: var(--muted);
+  padding: 10px 16px; background: var(--panel-alt);
   border-top: 1px solid var(--border);
 }
-.demo-creds-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; font-weight: 700; }
-.demo-creds table { width: 100%; font-size: 12px; border-collapse: collapse; }
-.demo-creds td { padding: 3px 4px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
-.demo-creds td:first-child { font-family: inherit; color: var(--text); }
-.demo-creds code { background: var(--panel-alt); padding: 1px 5px; border-radius: var(--radius-sm); color: var(--text); }
-
-@media (max-width: 760px) {
-  .login-hero { display: none; }
-  .login-form-panel { flex: 1; }
+.demo-creds {
+  padding: 10px 16px 14px;
+  border-top: 1px dashed var(--border);
 }
+.demo-creds-title { font-size: 10px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+.demo-creds table { width: 100%; font-size: 11px; border-collapse: collapse; }
+.demo-creds td { padding: 2px 4px; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+.demo-creds td:first-child { font-family: inherit; color: var(--text); }
+.demo-creds code { background: var(--border); padding: 1px 4px; color: var(--text); }
+.login-footer { font-size: 10.5px; color: #7c847f; }
 
 /* ---------- App shell ---------- */
 .app-shell { height: 100vh; display: flex; flex-direction: column; }
@@ -170,19 +126,19 @@ input, textarea, select { font-family: inherit; font-size: 13.5px; }
 .topbar {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 20px;
-  height: 52px;
+  gap: 16px;
+  padding: 0 14px;
+  height: 40px;
   background: var(--ink);
   flex-shrink: 0;
-  border-bottom: 3px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
 }
-.topbar-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; color: white; letter-spacing: 0.01em; }
+.topbar-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; color: white; letter-spacing: 0.01em; }
 .topbar-brand .accent-dot { color: #4fa89c; }
-.topbar-nav { display: flex; gap: 2px; flex: 1; margin-left: 12px; }
+.topbar-nav { display: flex; gap: 2px; flex: 1; margin-left: 8px; }
 .topbar-nav button {
-  background: none; border: none; padding: 0 14px; height: 52px; font-size: 12.5px; color: #9fb0a9; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 2px solid transparent;
+  background: none; border: none; padding: 0 12px; height: 40px; font-size: 11.5px; color: #9fb0a9; font-weight: 600;
+  border-bottom: 2px solid transparent;
 }
 .topbar-nav button:hover { color: white; }
 .topbar-nav button.active { color: white; border-bottom-color: var(--accent); }
@@ -222,7 +178,7 @@ input, textarea, select { font-family: inherit; font-size: 13.5px; }
   overflow-y: auto;
   flex-shrink: 0;
 }
-.sidebar-section { padding: 14px 14px 6px; border-bottom: 1px solid var(--border); }
+.sidebar-section { padding: 10px 12px 6px; border-bottom: 1px solid var(--border); }
 .sidebar-section:last-child { border-bottom: none; flex: 1; }
 .sidebar-section-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -372,11 +328,12 @@ input, textarea, select { font-family: inherit; font-size: 13.5px; }
 .chart-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; margin-bottom: 14px; }
 .chart-body { overflow-x: auto; }
 .chart-empty { font-size: 12.5px; color: var(--muted); padding: 20px 0; }
-.audit-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); }
-.audit-table th, .audit-table td { text-align: left; padding: 9px 12px; font-size: 12px; border-bottom: 1px solid var(--border); }
+.audit-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid #a9afab; }
+.audit-table th, .audit-table td { text-align: left; padding: 5px 10px; font-size: 11.5px; border: 1px solid #c7ccc8; }
 .audit-table td { font-family: var(--mono); }
-.audit-table th { background: var(--ink); color: #c3d1cc; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; font-family: inherit; }
-.audit-table tr:hover td { background: var(--panel-alt); }
+.audit-table th { background: var(--panel-alt); color: var(--ink); font-weight: 700; font-size: 11px; font-family: inherit; }
+.audit-table tr:nth-child(even) td { background: #f8f9f8; }
+.audit-table tr:hover td { background: var(--accent-light); }
 .audit-table td.query-cell { max-width: 320px; font-family: inherit; }
 
 /* ---------- Modals ---------- */
