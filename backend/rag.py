@@ -33,28 +33,19 @@ def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     return [c for c in chunks if c.strip()]
 
 
-def ingest_document(
+def index_chunks(
     *,
-    conn,
+    document_id: int,
     patient_db_id: int | None,
     title: str,
     doc_type: str,
-    allowed_roles: list[str],
+    allowed_roles_csv: str,
     text: str,
-    source_filename: str | None = None,
-    uploaded_by: str | None = None,
-) -> dict:
-    """Chunk `text`, index it in Chroma, and record it in the documents table."""
+) -> int:
+    """Chunk `text` and add it to the Chroma collection under an existing document_id.
+    Used both by fresh ingestion and by reindex_from_postgres.py (data/chroma can be wiped
+    or lost independently of Postgres -- see that script's docstring for why)."""
     chunks = _chunk_text(text, config.CHUNK_SIZE, config.CHUNK_OVERLAP)
-    allowed_roles_csv = ",".join(allowed_roles)
-
-    row = conn.execute(
-        """INSERT INTO documents (patient_id, title, doc_type, allowed_roles, source_filename, uploaded_by, chunk_count, full_text)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
-        (patient_db_id, title, doc_type, allowed_roles_csv, source_filename, uploaded_by, len(chunks), text),
-    ).fetchone()
-    document_id = row["id"]
-
     if chunks:
         ids = [str(uuid.uuid4()) for _ in chunks]
         metadatas = [
@@ -69,14 +60,69 @@ def ingest_document(
             for i in range(len(chunks))
         ]
         _collection.add(ids=ids, documents=chunks, metadatas=metadatas)
+    return len(chunks)
 
-    return {"document_id": document_id, "chunks_indexed": len(chunks)}
+
+def ingest_document(
+    *,
+    conn,
+    patient_db_id: int | None,
+    title: str,
+    doc_type: str,
+    allowed_roles: list[str],
+    text: str,
+    source_filename: str | None = None,
+    uploaded_by: str | None = None,
+) -> dict:
+    """Chunk `text`, record it in the documents table, and index it in Chroma."""
+    allowed_roles_csv = ",".join(allowed_roles)
+    chunk_count = len(_chunk_text(text, config.CHUNK_SIZE, config.CHUNK_OVERLAP))
+
+    row = conn.execute(
+        """INSERT INTO documents (patient_id, title, doc_type, allowed_roles, source_filename, uploaded_by, chunk_count, full_text)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+        (patient_db_id, title, doc_type, allowed_roles_csv, source_filename, uploaded_by, chunk_count, text),
+    ).fetchone()
+    document_id = row["id"]
+
+    chunks_indexed = index_chunks(
+        document_id=document_id, patient_db_id=patient_db_id, title=title,
+        doc_type=doc_type, allowed_roles_csv=allowed_roles_csv, text=text,
+    )
+
+    return {"document_id": document_id, "chunks_indexed": chunks_indexed}
 
 
 def delete_document(document_id: int):
     _collection.delete(where={"document_id": document_id})
     with db.session() as conn:
         conn.execute("DELETE FROM documents WHERE id = %s", (document_id,))
+
+
+def heal_vector_store_if_empty():
+    """Startup self-check: if Postgres has documents but Chroma has zero vectors, the two
+    stores have drifted apart (e.g. data/chroma/ was wiped, lost, or never carried over to a
+    new machine/directory while the Postgres volume did) -- every query would silently return
+    "no relevant documents found" with no error. Detect and repair it automatically rather
+    than failing silently. See scripts/reindex_chroma.py for the manual/offline equivalent."""
+    if _collection.count() > 0:
+        return
+    with db.session() as conn:
+        rows = conn.execute(
+            "SELECT id, patient_id, title, doc_type, allowed_roles, full_text FROM documents"
+        ).fetchall()
+    if not rows:
+        return
+    print(f"[rag] Vector store is empty but {len(rows)} documents exist in Postgres -- reindexing now.")
+    total = 0
+    for r in rows:
+        if not r["full_text"]:
+            continue
+        total += index_chunks(
+            document_id=r["id"], patient_db_id=r["patient_id"], title=r["title"],
+            doc_type=r["doc_type"], allowed_roles_csv=r["allowed_roles"], text=r["full_text"],
+        )
+    print(f"[rag] Reindexed {total} chunks across {len(rows)} documents.")
 
 
 def _role_can_access(allowed_roles_csv: str, role: str) -> bool:

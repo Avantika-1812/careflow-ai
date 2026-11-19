@@ -85,6 +85,7 @@ class MessageCreate(BaseModel):
 def startup_event():
     db.init_db()
     seed.seed_if_empty()
+    rag.heal_vector_store_if_empty()
 
 
 # ---------- Health ----------
