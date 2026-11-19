@@ -221,6 +221,8 @@ async function openConversation(conv) {
     ? 'Scoped to this patient’s authorized documents + hospital guidelines'
     : 'Scoped to hospital guidelines only';
 
+  renderPatientBanner(conv.patient_id);
+
   el('chatForm').classList.remove('hidden');
   el('chatEmptyState').classList.add('hidden');
   el('toggleDocsBtn').classList.toggle('hidden', !conv.patient_id && state.user.role !== 'clinician' && state.user.role !== 'admin');
@@ -235,6 +237,52 @@ async function openConversation(conv) {
   } else {
     await loadDocuments(null);
   }
+}
+
+function calcAge(dob) {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth)) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function renderPatientBanner(patientId) {
+  const banner = el('patientBanner');
+  if (!patientId) {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+    return;
+  }
+  const p = state.patients.find(pt => pt.id === patientId);
+  if (!p) {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+    return;
+  }
+  const age = calcAge(p.dob);
+  banner.innerHTML = `
+    <div class="patient-banner-field">
+      <div class="patient-banner-label">Patient</div>
+      <div class="patient-banner-value name">${escapeHtml(p.name)}</div>
+    </div>
+    <div class="patient-banner-field">
+      <div class="patient-banner-label">MRN</div>
+      <div class="patient-banner-value">${escapeHtml(p.mrn)}</div>
+    </div>
+    <div class="patient-banner-field">
+      <div class="patient-banner-label">DOB</div>
+      <div class="patient-banner-value">${escapeHtml(p.dob || '—')}${age !== null ? ` (${age}y)` : ''}</div>
+    </div>
+    <div class="patient-banner-field">
+      <div class="patient-banner-label">Sex</div>
+      <div class="patient-banner-value">${escapeHtml(p.sex || '—')}</div>
+    </div>
+  `;
+  banner.classList.remove('hidden');
 }
 
 function renderExamples(hasPatient) {
@@ -268,6 +316,14 @@ function renderMessages() {
 function renderMessage(m) {
   const wrap = document.createElement('div');
   wrap.className = `msg ${m.role}`;
+
+  if (m.role === 'user') {
+    const label = document.createElement('div');
+    label.className = 'query-line';
+    label.textContent = 'Query';
+    wrap.appendChild(label);
+  }
+
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   bubble.textContent = m.content;
@@ -447,7 +503,7 @@ async function loadAuditLog() {
     for (const log of logs) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${escapeHtml(log.created_at)}</td>
+        <td>${escapeHtml(new Date(log.created_at).toLocaleString())}</td>
         <td>${escapeHtml(log.username)}</td>
         <td>${escapeHtml(log.role)}</td>
         <td>${escapeHtml(log.patient_name || '—')}</td>

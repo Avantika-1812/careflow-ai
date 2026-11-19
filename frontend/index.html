@@ -13,21 +13,21 @@
   <div class="login-hero">
     <div class="login-hero-top">
       <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/></svg>
       </div>
       <span class="login-hero-name">CareFlow<span class="accent-dot">AI</span></span>
     </div>
     <div class="login-hero-body">
-      <h2>Clinical information, on demand.</h2>
-      <p>Query authorized patient records, labs, prescriptions, and hospital guidelines in
-      plain language — with full source citations and role-based access control.</p>
+      <h2>Clinical Documentation Assistant</h2>
+      <p>Authorized staff may query patient records, laboratory results, prescriptions, and
+      hospital guidelines through this system. All responses cite their originating document.</p>
       <ul class="login-hero-points">
-        <li>Role-based access for clinicians, admins, and staff</li>
-        <li>Every answer cites its source documents</li>
-        <li>Full query audit trail for compliance review</li>
+        <li>Access is restricted by assigned role</li>
+        <li>Every response is traceable to a source document</li>
+        <li>All queries are logged for compliance review</li>
       </ul>
     </div>
-    <div class="login-hero-foot">Internal system &middot; Synthetic demo data only</div>
+    <div class="login-hero-foot">Internal system &middot; Authorized use only &middot; Synthetic demo data</div>
   </div>
 
   <div class="login-form-panel">
@@ -59,7 +59,7 @@
   <header class="topbar">
     <div class="topbar-brand">
       <div class="brand-mark small">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/></svg>
       </div>
       <span>CareFlow<span class="accent-dot">AI</span></span>
     </div>
@@ -90,7 +90,7 @@
 
       <div class="sidebar-section">
         <div class="sidebar-section-header">
-          <span>Conversations</span>
+          <span>Query Log</span>
           <button id="newConvoBtn" class="btn-icon" title="New conversation">+</button>
         </div>
         <div id="conversationList" class="conversation-list"></div>
@@ -99,6 +99,7 @@
 
     <!-- CHAT PANEL -->
     <section class="chat-panel">
+      <div class="patient-banner hidden" id="patientBanner"></div>
       <div class="chat-header">
         <div>
           <div class="chat-title" id="chatTitle">Select or start a conversation</div>
