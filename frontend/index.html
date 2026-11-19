@@ -8,8 +8,80 @@
 </head>
 <body>
 
+<!-- LANDING VIEW -->
+<div id="landingView" class="landing">
+  <header class="landing-header">
+    <div class="landing-brand">
+      <div class="brand-mark small">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/></svg>
+      </div>
+      <span>CareFlow<span class="accent-dot">AI</span></span>
+    </div>
+    <nav class="landing-nav">
+      <button id="landingSignInBtn" class="btn-ghost-light">Sign in</button>
+      <button id="landingSignUpBtn" class="btn-primary inline-btn">Start free trial</button>
+    </nav>
+  </header>
+
+  <section class="landing-hero">
+    <h1>Stop searching.<br>Start asking.</h1>
+    <p class="landing-hero-sub">
+      CareFlow AI lets clinical staff query patient records, labs, prescriptions, and hospital
+      guidelines in plain language — with every answer traced back to its source document.
+    </p>
+    <div class="landing-hero-ctas">
+      <button id="heroSignUpBtn" class="btn-primary inline-btn">Start your free trial</button>
+      <button id="heroSignInBtn" class="btn-secondary inline-btn">Sign in</button>
+    </div>
+    <p class="landing-hero-note">No credit card required &middot; Your hospital's data is fully isolated from every other account</p>
+  </section>
+
+  <section class="landing-features">
+    <div class="feature-card">
+      <div class="feature-kicker">Natural language</div>
+      <h3>Ask like a colleague, not a database</h3>
+      <p>No more digging through charts tab by tab. Type a question the way you'd ask a
+      colleague — "what's he on for his hypertension?" — and get an answer in seconds.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-kicker">Traceable</div>
+      <h3>Every answer cites its source</h3>
+      <p>No answer is generated from thin air. Every response is grounded in your own
+      documents and links straight back to the original record, with a confidence score
+      showing how well-supported it is.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-kicker">Access control</div>
+      <h3>Isolation that's structural, not cosmetic</h3>
+      <p>Roles are enforced at the data layer, not just hidden in the UI. Your organization's
+      data is never visible to another account on the platform — by construction, not by
+      configuration.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-kicker">Compliance-ready</div>
+      <h3>A full audit trail, from day one</h3>
+      <p>Every query — who asked, what role, which patient, which documents were used — is
+      logged and reviewable, with a usage dashboard built in for your administrators.</p>
+    </div>
+  </section>
+
+  <section class="landing-steps">
+    <h2>Get your hospital running in minutes</h2>
+    <div class="steps-row">
+      <div class="step"><div class="step-num">1</div><div><strong>Sign up your organization</strong><p>Create your account — your hospital gets its own fully isolated workspace instantly.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div><strong>Add your documents</strong><p>Upload patient records, labs, and guidelines, or generate a demo dataset to explore.</p></div></div>
+      <div class="step"><div class="step-num">3</div><div><strong>Start asking questions</strong><p>Invite your clinical and admin staff — they're searching your documents within minutes.</p></div></div>
+    </div>
+  </section>
+
+  <footer class="landing-footer">
+    <span>CareFlow AI &middot; Build 2026.11</span>
+    <span>This instance uses synthetic demonstration data only.</span>
+  </footer>
+</div>
+
 <!-- LOGIN VIEW -->
-<div id="loginView" class="login-screen">
+<div id="loginView" class="login-screen hidden">
   <div class="login-box">
     <div class="login-box-header">
       <div class="brand-mark small">
@@ -44,8 +116,51 @@
         <tr><td>Staff</td><td><code>front.desk</code></td><td><code>staff123</code></td></tr>
       </table>
     </div>
+    <div class="auth-switch">New hospital? <a href="#" id="goToSignup">Start a free trial</a></div>
   </div>
-  <div class="login-footer">CareFlow AI &middot; Build 2026.11 &middot; IT Service Desk ext. 4357</div>
+  <div class="login-footer">
+    <a href="#" id="loginBackHome">&larr; Back to home</a>
+    <span>CareFlow AI &middot; Build 2026.11 &middot; IT Service Desk ext. 4357</span>
+  </div>
+</div>
+
+<!-- SIGNUP VIEW -->
+<div id="signupView" class="login-screen hidden">
+  <div class="login-box">
+    <div class="login-box-header">
+      <div class="brand-mark small">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/></svg>
+      </div>
+      <div>
+        <div class="login-box-title">CareFlow<span class="accent-dot">AI</span></div>
+        <div class="login-box-subtitle">Start your free trial</div>
+      </div>
+    </div>
+
+    <form id="signupForm">
+      <label>Organization / hospital name</label>
+      <input id="signupOrgName" type="text" required placeholder="e.g. St. Mary Regional Medical Center" />
+      <label>Your full name</label>
+      <input id="signupFullName" type="text" required />
+      <label>Choose a username</label>
+      <input id="signupUsername" type="text" autocomplete="username" required />
+      <label>Choose a password (min. 8 characters)</label>
+      <input id="signupPassword" type="password" autocomplete="new-password" minlength="8" required />
+      <button type="submit" id="signupBtn">Create organization</button>
+      <div id="signupError" class="form-error hidden"></div>
+    </form>
+
+    <div class="login-notice">
+      This creates a new, fully isolated organization. You'll be the first administrator and
+      can invite clinician/staff accounts afterward. No credit card required.
+    </div>
+
+    <div class="auth-switch">Already have an account? <a href="#" id="goToLogin">Sign in</a></div>
+  </div>
+  <div class="login-footer">
+    <a href="#" id="signupBackHome">&larr; Back to home</a>
+    <span>CareFlow AI &middot; Build 2026.11</span>
+  </div>
 </div>
 
 <!-- APP VIEW -->
@@ -58,6 +173,7 @@
       <span>CareFlow<span class="accent-dot">AI</span></span>
     </div>
     <nav class="topbar-nav" id="topbarNav"></nav>
+    <div class="topbar-org" id="topbarOrg"></div>
     <div class="topbar-user">
       <span class="user-name" id="userName"></span>
       <span class="role-badge" id="userRole"></span>

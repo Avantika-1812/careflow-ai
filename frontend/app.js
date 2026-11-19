@@ -47,9 +47,51 @@ async function api(path, { method = 'GET', body, isForm = false } = {}) {
 // ---------- DOM refs ----------
 const el = (id) => document.getElementById(id);
 const loginView = el('loginView');
+const signupView = el('signupView');
+const landingView = el('landingView');
 const appView = el('appView');
 
+function showOnly(view) {
+  [landingView, loginView, signupView, appView].forEach(v => v.classList.add('hidden'));
+  view.classList.remove('hidden');
+}
+
+el('landingSignInBtn').addEventListener('click', () => showOnly(loginView));
+el('heroSignInBtn').addEventListener('click', () => showOnly(loginView));
+el('landingSignUpBtn').addEventListener('click', () => showOnly(signupView));
+el('heroSignUpBtn').addEventListener('click', () => showOnly(signupView));
+el('goToSignup').addEventListener('click', (e) => { e.preventDefault(); showOnly(signupView); });
+el('goToLogin').addEventListener('click', (e) => { e.preventDefault(); showOnly(loginView); });
+el('loginBackHome').addEventListener('click', (e) => { e.preventDefault(); showOnly(landingView); });
+el('signupBackHome').addEventListener('click', (e) => { e.preventDefault(); showOnly(landingView); });
+
 // ---------- Auth ----------
+el('signupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  el('signupError').classList.add('hidden');
+  el('signupBtn').disabled = true;
+  try {
+    const data = await api('/signup', {
+      method: 'POST',
+      body: {
+        organization_name: el('signupOrgName').value.trim(),
+        full_name: el('signupFullName').value.trim(),
+        username: el('signupUsername').value.trim(),
+        password: el('signupPassword').value,
+      },
+    });
+    state.token = data.token;
+    state.user = data.user;
+    localStorage.setItem('careflow_token', state.token);
+    await boot();
+  } catch (err) {
+    el('signupError').textContent = err.message;
+    el('signupError').classList.remove('hidden');
+  } finally {
+    el('signupBtn').disabled = false;
+  }
+});
+
 el('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const username = el('loginUsername').value.trim();
@@ -91,11 +133,11 @@ async function tryResumeSession() {
 
 // ---------- Boot ----------
 async function boot() {
-  loginView.classList.add('hidden');
-  appView.classList.remove('hidden');
+  showOnly(appView);
 
   el('userName').textContent = state.user.full_name;
   el('userRole').textContent = state.user.role;
+  el('topbarOrg').textContent = state.user.organization_name || '';
 
   renderTopNav();
 
@@ -748,7 +790,6 @@ function escapeHtml(str) {
   if (resumed) {
     await boot();
   } else {
-    loginView.classList.remove('hidden');
-    appView.classList.add('hidden');
+    showOnly(landingView);
   }
 })();
