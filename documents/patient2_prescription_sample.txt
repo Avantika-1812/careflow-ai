@@ -1,0 +1,10 @@
+PRESCRIPTION HISTORY (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1002
+Name: M. Chen
+
+1. Budesonide/Formoterol 160/4.5mcg, 2 puffs BID - Started 2025-11-16 for persistent asthma, maintenance therapy. Ongoing.
+2. Albuterol HFA 90mcg, 2 puffs as needed - Rescue inhaler, ongoing since 2025-11-16.
+3. Prednisone 40mg, once daily x 5 days (taper) - Prescribed 2026-07-19 for acute asthma exacerbation. Course completed.
+4. Nebulized Albuterol/Ipratropium - Administered during 2026-07-19 ER visit only, not a standing prescription.
+
+No known drug allergies on file.

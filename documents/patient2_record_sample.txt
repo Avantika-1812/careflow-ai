@@ -1,0 +1,17 @@
+PATIENT RECORD (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1002
+Name: M. Chen
+DOB: 1991-09-30
+Sex: Female
+
+Visit History:
+- 2025-11-02: New patient visit for recurrent wheeze and shortness of breath on exertion. Spirometry ordered.
+- 2025-11-16: Spirometry showed reversible airflow obstruction (FEV1 72% predicted, improved to 89% post-bronchodilator). Diagnosed with persistent asthma. Started on budesonide/formoterol inhaler.
+- 2026-03-05: Follow-up. Reports improved symptom control, occasional rescue inhaler use (2x/week). Peak flow diary reviewed.
+- 2026-07-19: Presented to ER with acute asthma exacerbation triggered by viral URI. Oxygen saturation 91% on room air. Treated with nebulized albuterol/ipratropium and oral prednisone taper. Discharged same day.
+- 2026-09-10: Routine follow-up post-exacerbation. Lung function back to baseline. Reviewed inhaler technique and trigger avoidance.
+
+Known Allergies: None documented
+Chronic Conditions: Persistent asthma (moderate)
+
+Care Team Notes: Consider step-up therapy if exacerbations continue more than twice per year. Patient educated on asthma action plan.

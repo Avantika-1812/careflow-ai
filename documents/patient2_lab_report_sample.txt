@@ -1,0 +1,19 @@
+LABORATORY / PULMONARY FUNCTION REPORT (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1002
+Name: M. Chen
+Collection Date: 2025-11-16
+
+Spirometry:
+- FEV1 (pre-bronchodilator): 72% predicted
+- FEV1 (post-bronchodilator): 89% predicted (17% improvement -- consistent with reversible obstruction)
+- FVC: 94% predicted
+- FEV1/FVC ratio: 0.68 (reduced)
+Impression: Reversible airflow obstruction consistent with asthma.
+
+ER Visit Labs (2026-07-19):
+- Oxygen saturation: 91% on room air (improved to 97% after nebulizer treatment)
+- Chest X-ray: No infiltrate, hyperinflation consistent with acute asthma exacerbation
+- Respiratory viral panel: Positive for rhinovirus
+
+Follow-up Spirometry (2026-09-10):
+- FEV1: 91% predicted (back to personal baseline)

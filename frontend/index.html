@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CareFlow AI</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="loginView" class="login-screen">
+  <div class="login-hero">
+    <div class="login-hero-top">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="login-hero-name">CareFlow<span class="accent-dot">AI</span></span>
+    </div>
+    <div class="login-hero-body">
+      <h2>Clinical information, on demand.</h2>
+      <p>Query authorized patient records, labs, prescriptions, and hospital guidelines in
+      plain language — with full source citations and role-based access control.</p>
+      <ul class="login-hero-points">
+        <li>Role-based access for clinicians, admins, and staff</li>
+        <li>Every answer cites its source documents</li>
+        <li>Full query audit trail for compliance review</li>
+      </ul>
+    </div>
+    <div class="login-hero-foot">Internal system &middot; Synthetic demo data only</div>
+  </div>
+
+  <div class="login-form-panel">
+    <div class="login-card">
+      <h1>Sign in</h1>
+      <p class="login-sub">Enter your CareFlow AI credentials to continue.</p>
+      <form id="loginForm">
+        <label>Username</label>
+        <input id="loginUsername" type="text" autocomplete="username" required />
+        <label>Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required />
+        <button type="submit" id="loginBtn">Sign in</button>
+        <div id="loginError" class="form-error hidden"></div>
+      </form>
+      <div class="demo-creds">
+        <div class="demo-creds-title">Demo accounts</div>
+        <table>
+          <tr><td>Clinician</td><td><code>dr.patel</code></td><td><code>clinician123</code></td></tr>
+          <tr><td>Admin</td><td><code>admin</code></td><td><code>admin123</code></td></tr>
+          <tr><td>Staff</td><td><code>front.desk</code></td><td><code>staff123</code></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP VIEW -->
+<div id="appView" class="app-shell hidden">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-mark small">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span>CareFlow<span class="accent-dot">AI</span></span>
+    </div>
+    <nav class="topbar-nav" id="topbarNav"></nav>
+    <div class="topbar-user">
+      <span class="user-name" id="userName"></span>
+      <span class="role-badge" id="userRole"></span>
+      <button id="logoutBtn" class="btn-ghost">Log out</button>
+    </div>
+  </header>
+
+  <div class="disclaimer-bar">
+    Demo environment using synthetic patient data only. CareFlow AI is an information-support
+    tool, not a diagnostic system — clinical decisions remain the responsibility of licensed
+    professionals.
+  </div>
+
+  <main class="workspace" id="chatWorkspace">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section" id="patientSection">
+        <div class="sidebar-section-header">
+          <span>Patients</span>
+        </div>
+        <input type="text" id="patientSearch" placeholder="Search name or MRN..." class="sidebar-search" />
+        <div id="patientList" class="patient-list"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span>Conversations</span>
+          <button id="newConvoBtn" class="btn-icon" title="New conversation">+</button>
+        </div>
+        <div id="conversationList" class="conversation-list"></div>
+      </div>
+    </aside>
+
+    <!-- CHAT PANEL -->
+    <section class="chat-panel">
+      <div class="chat-header">
+        <div>
+          <div class="chat-title" id="chatTitle">Select or start a conversation</div>
+          <div class="chat-subtitle" id="chatSubtitle"></div>
+        </div>
+        <button id="toggleDocsBtn" class="btn-secondary hidden">Documents</button>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="empty-state" id="chatEmptyState">
+          <p>Start a new conversation from the sidebar to begin.</p>
+        </div>
+      </div>
+
+      <form id="chatForm" class="chat-input-row hidden">
+        <div class="examples-row" id="examplesRow"></div>
+        <div class="input-group">
+          <textarea id="chatInput" rows="2" placeholder="Ask about this patient's history, labs, prescriptions, or guidelines..."></textarea>
+          <button type="submit" id="sendBtn">Send</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- DOCUMENTS PANEL -->
+    <aside class="docs-panel hidden" id="docsPanel">
+      <div class="docs-panel-header">
+        <span>Source Documents</span>
+        <button id="closeDocsBtn" class="btn-icon" title="Close">×</button>
+      </div>
+      <button id="uploadBtn" class="btn-primary full-width hidden">+ Upload document</button>
+      <div id="docsList" class="docs-list"></div>
+    </aside>
+  </main>
+
+  <!-- ADMIN AUDIT VIEW -->
+  <main class="workspace hidden" id="auditWorkspace">
+    <section class="audit-panel">
+      <h2>Query Audit Log</h2>
+      <p class="audit-sub">Every query, the role that asked it, the patient in scope, and the documents retrieved — for transparency and compliance review.</p>
+      <table class="audit-table" id="auditTable">
+        <thead>
+          <tr><th>Time</th><th>User</th><th>Role</th><th>Patient</th><th>Query</th><th>Confidence</th><th>Docs</th></tr>
+        </thead>
+        <tbody id="auditTbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- ADMIN USERS VIEW -->
+  <main class="workspace hidden" id="usersWorkspace">
+    <section class="audit-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Users</h2>
+          <p class="audit-sub">Accounts that can sign in to CareFlow AI, and the role each one has.</p>
+        </div>
+        <button id="addUserBtn" class="btn-primary inline-btn">+ Add user</button>
+      </div>
+      <table class="audit-table" id="usersTable">
+        <thead>
+          <tr><th>Full name</th><th>Username</th><th>Role</th><th>Created</th></tr>
+        </thead>
+        <tbody id="usersTbody"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<!-- ADD USER MODAL -->
+<div id="userModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Add user</h3>
+    <form id="userForm">
+      <label>Full name</label>
+      <input type="text" id="newUserFullName" required />
+      <label>Username</label>
+      <input type="text" id="newUserUsername" required />
+      <label>Temporary password</label>
+      <input type="password" id="newUserPassword" minlength="8" required />
+      <label>Role</label>
+      <select id="newUserRole">
+        <option value="clinician">Clinician</option>
+        <option value="admin">Admin</option>
+        <option value="staff">Staff</option>
+      </select>
+      <div class="modal-actions">
+        <button type="button" id="cancelUserBtn" class="btn-secondary">Cancel</button>
+        <button type="submit" class="btn-primary">Create account</button>
+      </div>
+      <div id="userError" class="form-error hidden"></div>
+    </form>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div id="uploadModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Upload document</h3>
+    <form id="uploadForm">
+      <label>File (.txt or .pdf)</label>
+      <input type="file" id="uploadFile" accept=".txt,.pdf" required />
+      <label>Title</label>
+      <input type="text" id="uploadTitle" required />
+      <label>Document type</label>
+      <select id="uploadDocType">
+        <option value="patient_record">Patient record</option>
+        <option value="lab_report">Lab report</option>
+        <option value="prescription">Prescription</option>
+        <option value="discharge_summary">Discharge summary</option>
+        <option value="imaging">Imaging</option>
+        <option value="guideline">Guideline</option>
+        <option value="other">Other</option>
+      </select>
+      <label>Visible to roles</label>
+      <div class="role-checks">
+        <label><input type="checkbox" value="clinician" checked /> Clinician</label>
+        <label><input type="checkbox" value="admin" checked /> Admin</label>
+        <label><input type="checkbox" value="staff" /> Staff</label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="cancelUploadBtn" class="btn-secondary">Cancel</button>
+        <button type="submit" class="btn-primary">Upload &amp; index</button>
+      </div>
+      <div id="uploadError" class="form-error hidden"></div>
+    </form>
+  </div>
+</div>
+
+<!-- DOCUMENT VIEWER MODAL -->
+<div id="docViewerModal" class="modal-overlay hidden">
+  <div class="modal modal-wide">
+    <div class="modal-header-row">
+      <h3 id="docViewerTitle"></h3>
+      <button id="closeDocViewerBtn" class="btn-icon">×</button>
+    </div>
+    <div id="docViewerMeta" class="doc-viewer-meta"></div>
+    <pre id="docViewerText" class="doc-viewer-text"></pre>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

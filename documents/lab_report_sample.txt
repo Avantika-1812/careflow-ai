@@ -1,0 +1,27 @@
+LABORATORY REPORT (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1001
+Name: J. Rivera
+Collection Date: 2026-05-20
+Report Date: 2026-05-20
+
+Complete Blood Count (CBC):
+- WBC: 14.2 x10^9/L (High; ref 4.0-11.0)
+- Hemoglobin: 13.1 g/dL (Normal)
+- Platelets: 210 x10^9/L (Normal)
+
+Basic Metabolic Panel:
+- Creatinine: 1.4 mg/dL (High; ref 0.6-1.2)
+- BUN: 22 mg/dL (High; ref 7-20)
+- Glucose: 118 mg/dL (Slightly High)
+
+Urinalysis:
+- Leukocyte esterase: Positive
+- Nitrites: Positive
+- Bacteria: Many
+- Impression: Consistent with urinary tract infection
+
+Blood Culture: Pending at time of discharge; final result (2026-05-22) positive for E. coli, sensitive to piperacillin-tazobactam and ciprofloxacin.
+
+Follow-up Labs (2026-08-02):
+- A1c: 5.9%
+- Creatinine: 1.0 mg/dL (Normal, improved from prior admission)

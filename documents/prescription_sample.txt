@@ -1,0 +1,10 @@
+PRESCRIPTION HISTORY (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1001
+Name: J. Rivera
+
+1. Azithromycin 500mg, once daily x 3 days - Prescribed 2026-02-03 for bronchitis. Course completed.
+2. Piperacillin-Tazobactam 3.375g IV, every 6 hours - Started 2026-05-20 during ER admission for sepsis/UTI. Discontinued 2026-05-23 at discharge; transitioned to oral ciprofloxacin 500mg BID x 7 days.
+3. Lisinopril 10mg, once daily - Ongoing since 2024 for hypertension management.
+4. Metformin 500mg, twice daily - Started 2026-06-01 for pre-diabetes management.
+
+Allergy Alert on File: Penicillin (rash). Pharmacy flagged piperacillin-tazobactam order on 2026-05-20; ordering physician documented risk-benefit discussion given severity of sepsis and proceeded with close monitoring. No adverse reaction observed.

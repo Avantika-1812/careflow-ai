@@ -1,0 +1,18 @@
+PATIENT RECORD (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1003
+Name: A. Okafor
+DOB: 1965-02-18
+Sex: Male
+
+Visit History:
+- 2024-06-10: Established care. History of type 2 diabetes (diagnosed 2019) and hyperlipidemia. On metformin and atorvastatin.
+- 2025-01-22: Routine follow-up. A1c 7.8% (above goal). Added empagliflozin for glycemic control and cardiovascular risk reduction.
+- 2025-09-14: Presented with intermittent chest tightness on exertion, relieved by rest. Referred to cardiology for stress testing.
+- 2025-09-28: Cardiology: Exercise stress test positive for inducible ischemia. Coronary angiogram showed 70% stenosis of the mid-LAD. Drug-eluting stent placed.
+- 2026-04-02: Post-stent follow-up. Asymptomatic, adherent to dual antiplatelet therapy. A1c improved to 7.1%.
+- 2026-08-15: Routine check-up. Blood pressure 134/84. A1c 6.9%. Discussed continued dual antiplatelet therapy duration with cardiology.
+
+Known Allergies: Sulfa drugs (hives)
+Chronic Conditions: Type 2 diabetes, hyperlipidemia, coronary artery disease (post-PCI with stent)
+
+Care Team Notes: Continue dual antiplatelet therapy per cardiology recommendation; reassess at 12-month post-stent mark. Monitor renal function with SGLT2 inhibitor use.

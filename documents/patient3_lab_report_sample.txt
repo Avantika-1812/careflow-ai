@@ -1,0 +1,23 @@
+LABORATORY / CARDIOLOGY REPORT (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1003
+Name: A. Okafor
+
+Metabolic Panel (2025-01-22):
+- A1c: 7.8% (High; goal <7.0%)
+- LDL cholesterol: 118 mg/dL (High; goal <100 mg/dL for diabetic patients)
+- eGFR: 78 mL/min/1.73m2 (Normal)
+
+Exercise Stress Test (2025-09-14):
+- Positive for inducible ischemia at 7 METs; ST depression in inferolateral leads.
+
+Coronary Angiogram (2025-09-28):
+- 70% stenosis, mid-LAD. Drug-eluting stent placed successfully. TIMI III flow post-procedure.
+
+Follow-up Labs (2026-04-02):
+- A1c: 7.1%
+- LDL cholesterol: 84 mg/dL (at goal, on atorvastatin)
+- eGFR: 74 mL/min/1.73m2 (stable)
+
+Follow-up Labs (2026-08-15):
+- A1c: 6.9% (at goal)
+- Blood pressure: 134/84 mmHg

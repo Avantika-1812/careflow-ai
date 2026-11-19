@@ -1,0 +1,23 @@
+HOSPITAL GUIDELINE (SYNTHETIC DATA FOR DEMO ONLY)
+Title: Sepsis Screening and Management Protocol
+Department: Emergency Medicine / Internal Medicine
+Version: 3.2
+Effective Date: 2026-01-01
+
+1. Screening Criteria (qSOFA): Assess for 2 or more of the following:
+   - Respiratory rate >= 22/min
+   - Altered mentation (GCS < 15)
+   - Systolic blood pressure <= 100 mmHg
+   A positive qSOFA screen should prompt escalation to the sepsis response team.
+
+2. Initial Management Bundle (within 1 hour of recognition):
+   - Obtain blood cultures prior to antibiotics (if feasible without delaying treatment)
+   - Measure serum lactate
+   - Administer broad-spectrum antibiotics per institutional guidance
+   - Begin IV crystalloid resuscitation (30 mL/kg) for hypotension or lactate >= 4 mmol/L
+
+3. Allergy Considerations: For patients with documented beta-lactam allergy, consult pharmacy/infectious disease before substituting broad-spectrum antibiotics. Risk-benefit discussion and physician documentation required if a beta-lactam is used despite a listed allergy, with heightened monitoring for reaction.
+
+4. Reassessment: Repeat lactate within 2-4 hours if initial lactate was elevated. Reassess fluid status and escalate to ICU if no improvement in hemodynamics after initial resuscitation.
+
+5. Documentation: All sepsis bundle elements and timestamps must be recorded in the patient's chart for quality reporting.

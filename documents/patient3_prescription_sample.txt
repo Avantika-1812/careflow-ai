@@ -1,0 +1,11 @@
+PRESCRIPTION HISTORY (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1003
+Name: A. Okafor
+
+1. Metformin 1000mg, twice daily - Ongoing since 2019 for type 2 diabetes.
+2. Atorvastatin 40mg, once daily - Ongoing since 2019 for hyperlipidemia.
+3. Empagliflozin 10mg, once daily - Started 2025-01-22 for glycemic control and cardiovascular risk reduction.
+4. Aspirin 81mg, once daily - Started 2025-09-28 post-stent (dual antiplatelet therapy, component 1).
+5. Clopidogrel 75mg, once daily - Started 2025-09-28 post-stent (dual antiplatelet therapy, component 2). Duration to be reassessed with cardiology at 12-month mark.
+
+Allergy Alert on File: Sulfa drugs (hives). No sulfa-containing medications currently prescribed.

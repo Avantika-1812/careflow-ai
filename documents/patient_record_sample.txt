@@ -1,0 +1,17 @@
+PATIENT RECORD (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1001
+Name: J. Rivera
+DOB: 1978-04-12
+Sex: Male
+
+Visit History:
+- 2026-01-14: Initial visit for persistent cough and fatigue. Vitals stable. Ordered CBC and chest X-ray.
+- 2026-02-03: Follow-up. Chest X-ray unremarkable. Diagnosed with mild bronchitis. Prescribed azithromycin 500mg.
+- 2026-05-20: Admitted via ER with fever (39.1C), tachycardia, and hypotension. Suspected sepsis secondary to urinary tract infection. Started on IV fluids and broad-spectrum antibiotics (piperacillin-tazobactam).
+- 2026-05-23: Discharged in stable condition. Advised follow-up with primary care in 1 week.
+- 2026-08-02: Routine check-up. Blood pressure 128/82. A1c 5.9%. No acute issues noted.
+
+Known Allergies: Penicillin (rash)
+Chronic Conditions: Hypertension (controlled), Pre-diabetes
+
+Care Team Notes: Patient reports improved energy levels since May admission. Continue monitoring renal function given prior antibiotic course.

@@ -1,0 +1,18 @@
+DISCHARGE SUMMARY (SYNTHETIC DATA FOR DEMO ONLY)
+Patient ID: SYN-1001
+Name: J. Rivera
+Admission Date: 2026-05-20
+Discharge Date: 2026-05-23
+
+Admitting Diagnosis: Sepsis secondary to urinary tract infection (E. coli)
+Discharge Diagnosis: Resolved sepsis/UTI, improving renal function
+
+Hospital Course: Patient presented to the ER with fever, tachycardia, and hypotension. Urinalysis and blood cultures confirmed E. coli UTI with bacteremia. Started on IV piperacillin-tazobactam and fluid resuscitation despite documented penicillin allergy, following risk-benefit discussion due to severity of presentation; no adverse reaction occurred. Renal function (creatinine 1.4 trending to 1.1) improved with hydration. Patient afebrile and hemodynamically stable for 48 hours prior to discharge.
+
+Discharge Medications:
+- Ciprofloxacin 500mg PO BID x 7 days
+- Continue home medications: Lisinopril 10mg daily
+
+Follow-up Instructions: Primary care follow-up within 1 week. Repeat BMP at follow-up to confirm renal function normalization. Return to ER if fever, flank pain, or worsening symptoms recur.
+
+Discharging Physician: Dr. A. Chen, Internal Medicine
