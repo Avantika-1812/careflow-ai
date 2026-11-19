@@ -13,6 +13,10 @@ Usage:
 Run Synthea first, e.g.:
     java -jar synthea-with-dependencies.jar --exporter.csv.export=true \\
         --exporter.fhir.export=false -p 25 Massachusetts
+
+If the app is already running while you run this, restart it afterwards: Chroma's already-open
+collection handle in that process won't see rows written by this separate process until it
+reopens the store.
 """
 import argparse
 import csv

@@ -137,15 +137,16 @@ patients, and documents automatically.
 
 ## Data
 
-Everything in this system is synthetic — made up for demonstration, never real patient
-information:
+No real patient information is in this system. It's seeded from three sources, two of which
+are genuinely independent, free, publicly available datasets (not written by hand or by an LLM):
 
 - **Hand-written seed patients** (`backend/seed.py` + `documents/`): 3 small, fully fictional
   patients with hand-authored records/labs/prescriptions, for quick manual testing.
-- **Synthea-generated patients** (optional, larger scale): [Synthea](https://github.com/synthetichealth/synthea)
+- **Synthea-generated patients** (structured, synthetic): [Synthea](https://github.com/synthetichealth/synthea)
   is an open-source tool that generates realistic but entirely fictional patient populations —
   demographics, encounters, conditions, medications, observations — with no real PHI involved
-  anywhere in the pipeline. To generate and import a batch:
+  anywhere in the pipeline. Good for scale (dozens/hundreds of patients) and structured data
+  (visit lists, medication timelines).
 
   ```bash
   # 1. Generate N synthetic patients as CSV (requires Java 17+)
@@ -158,8 +159,49 @@ information:
   python -m scripts.import_synthea ./output/csv
   ```
 
-  This is the realistic path to "dozens/hundreds of patients" instead of hand-writing them —
-  useful for load-testing retrieval and demoing at scale, still with zero real PHI.
+- **MTSamples clinical reference library** (real, de-identified narrative text): [MTSamples](https://www.mtsamples.com/)
+  is a public, CC0 collection of ~5,000 real de-identified medical transcription sample reports
+  (H&Ps, discharge summaries, radiology reports, SOAP notes) across many specialties, widely
+  used in clinical NLP research. Unlike Synthea's structured/templated output, this is genuine
+  unstructured clinical prose — a meaningfully different and harder test of retrieval quality.
+  Imported as global reference documents (not attached to any one patient), visible to
+  clinician/admin only.
+
+  ```bash
+  # 1. Extract the source parquet to a local JSON cache (needs pyarrow, which conflicts with
+  #    this project's pinned numpy -- use a disposable venv rather than the project's own)
+  python3 -m venv /tmp/mtsamples-extract && /tmp/mtsamples-extract/bin/pip install pyarrow
+  /tmp/mtsamples-extract/bin/python3 -c "
+  import pyarrow.parquet as pq, json, re, urllib.request
+  from pathlib import Path
+  urls = [
+      'https://huggingface.co/datasets/anurag-raapid/mt-samples/resolve/main/data/train-00000-of-00001.parquet',
+      'https://huggingface.co/datasets/anurag-raapid/mt-samples/resolve/main/data/test-00000-of-00001.parquet',
+  ]
+  samples = []
+  for url in urls:
+      dest = Path('/tmp') / url.split('/')[-1]
+      urllib.request.urlretrieve(url, dest)
+      for text in pq.read_table(dest, columns=['text']).column('text').to_pylist():
+          name = re.search(r'Sample Name:\s*(.+)', text)
+          spec = re.search(r'Sample Type / Medical Specialty:\s*(.+)', text)
+          samples.append({'title': name.group(1).strip() if name else 'Untitled Sample',
+                           'specialty': spec.group(1).strip() if spec else 'General', 'text': text.strip()})
+  Path('careflow-ai/data/mtsamples_cache').mkdir(parents=True, exist_ok=True)
+  Path('careflow-ai/data/mtsamples_cache/samples.json').write_text(json.dumps(samples))
+  print(f'Wrote {len(samples)} samples')
+  "
+
+  # 2. Import into CareFlow
+  cd careflow-ai && source venv/bin/activate
+  python -m scripts.import_mtsamples
+  ```
+
+**If the app is already running when you run either import script**, restart it afterwards.
+Chroma's already-open collection handle in that process won't see rows written by this separate
+process until it reopens the vector store file — this isn't a bug, just how a second process
+writing to the same SQLite-backed file behaves. (`rag.heal_vector_store_if_empty()` at startup
+catches the *empty* case, not this *stale* case.)
 
 ## Adding your own data
 
