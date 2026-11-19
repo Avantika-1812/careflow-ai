@@ -348,7 +348,7 @@ input, textarea, select { font-family: inherit; font-size: 13.5px; }
 .modal-wide { width: 640px; max-height: 80vh; display: flex; flex-direction: column; }
 .modal h3 { margin: 0 0 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em; }
 .modal label { display: block; font-size: 11px; color: var(--muted); margin: 12px 0 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.modal input[type="text"], .modal input[type="password"], .modal input[type="file"], .modal select {
+.modal input[type="text"], .modal input[type="password"], .modal input[type="file"], .modal input[type="date"], .modal select {
   width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel-alt);
 }
 .role-checks { display: flex; gap: 14px; margin-top: 6px; font-size: 12.5px; }

@@ -101,6 +101,7 @@ async function boot() {
   const canSeePatients = state.user.role === 'clinician' || state.user.role === 'admin';
   el('patientSection').classList.toggle('hidden', !canSeePatients);
   el('uploadBtn').classList.toggle('hidden', !canSeePatients);
+  el('addPatientBtn').classList.toggle('hidden', state.user.role !== 'admin');
 
   if (canSeePatients) await loadPatients();
   await loadConversations();
@@ -691,6 +692,36 @@ el('userForm').addEventListener('submit', async (e) => {
   } catch (err) {
     el('userError').textContent = err.message;
     el('userError').classList.remove('hidden');
+  }
+});
+
+// ---------- Admin patient management ----------
+el('addPatientBtn').addEventListener('click', () => {
+  el('patientForm').reset();
+  el('patientError').classList.add('hidden');
+  el('patientModal').classList.remove('hidden');
+});
+el('cancelPatientBtn').addEventListener('click', () => el('patientModal').classList.add('hidden'));
+
+el('patientForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  el('patientError').classList.add('hidden');
+  try {
+    const patient = await api('/patients', {
+      method: 'POST',
+      body: {
+        name: el('newPatientName').value.trim(),
+        mrn: el('newPatientMrn').value.trim(),
+        dob: el('newPatientDob').value || null,
+        sex: el('newPatientSex').value || null,
+      },
+    });
+    el('patientModal').classList.add('hidden');
+    await loadPatients();
+    await startConversation(patient.id);
+  } catch (err) {
+    el('patientError').textContent = err.message;
+    el('patientError').classList.remove('hidden');
   }
 });
 

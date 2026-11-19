@@ -77,6 +77,7 @@
       <div class="sidebar-section" id="patientSection">
         <div class="sidebar-section-header">
           <span>Patients</span>
+          <button id="addPatientBtn" class="btn-icon hidden" title="Add patient">+</button>
         </div>
         <input type="text" id="patientSearch" placeholder="Search name or MRN..." class="sidebar-search" />
         <div id="patientList" class="patient-list"></div>
@@ -215,6 +216,33 @@
         <button type="submit" class="btn-primary">Create account</button>
       </div>
       <div id="userError" class="form-error hidden"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ADD PATIENT MODAL -->
+<div id="patientModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Add patient</h3>
+    <form id="patientForm">
+      <label>Full name</label>
+      <input type="text" id="newPatientName" required />
+      <label>MRN</label>
+      <input type="text" id="newPatientMrn" required />
+      <label>Date of birth</label>
+      <input type="date" id="newPatientDob" />
+      <label>Sex</label>
+      <select id="newPatientSex">
+        <option value="">Unspecified</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+      <div class="modal-actions">
+        <button type="button" id="cancelPatientBtn" class="btn-secondary">Cancel</button>
+        <button type="submit" class="btn-primary">Add patient</button>
+      </div>
+      <div id="patientError" class="form-error hidden"></div>
     </form>
   </div>
 </div>
