@@ -142,7 +142,7 @@ patients, and documents automatically.
 
 ## Data
 
-No real patient information is in this system. It's seeded from three sources, two of which
+No real patient information is in this system. It's seeded from four sources, three of which
 are genuinely independent, free, publicly available datasets (not written by hand or by an LLM):
 
 - **Hand-written seed patients** (`backend/seed.py` + `documents/`): 3 small, fully fictional
@@ -202,7 +202,24 @@ are genuinely independent, free, publicly available datasets (not written by han
   python -m scripts.import_mtsamples
   ```
 
-**If the app is already running when you run either import script**, restart it afterwards.
+- **Kaggle "Healthcare Dataset"** (real-world-scale, synthetic): the well-known
+  [prasad22/healthcare-dataset](https://www.kaggle.com/datasets/prasad22/healthcare-dataset)
+  on Kaggle — 55,500 synthetic hospital admission records (name, age, condition, doctor,
+  hospital, medication, billing, test results). Kaggle's own API needs a personal account +
+  key, so this pulls from a public GitHub mirror of the same CSV instead (no auth needed).
+  Good for demonstrating real-world *scale* — hundreds or thousands of patients rather than a
+  handful — without needing Kaggle credentials.
+
+  ```bash
+  curl -sL -o data/kaggle_cache/healthcare_dataset.csv \
+    https://raw.githubusercontent.com/imranbdcse/healthcaredatasets/DataScience/healthcare_dataset.csv
+
+  cd careflow-ai && source venv/bin/activate
+  python -m scripts.import_kaggle_healthcare --limit 5000   # fast demo-sized import
+  python -m scripts.import_kaggle_healthcare                # full 55,500 (slower: ~1 embed/row)
+  ```
+
+**If the app is already running when you run any import script**, restart it afterwards.
 Chroma's already-open collection handle in that process won't see rows written by this separate
 process until it reopens the vector store file — this isn't a bug, just how a second process
 writing to the same SQLite-backed file behaves. (`rag.heal_vector_store_if_empty()` at startup

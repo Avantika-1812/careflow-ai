@@ -30,7 +30,7 @@ DOCUMENTS = [
 ]
 
 
-def seed_if_empty():
+def seed_if_empty(organization_id: int):
     db.init_db()
     with db.session() as conn:
         count = conn.execute("SELECT COUNT(*) AS c FROM patients").fetchone()["c"]
@@ -40,15 +40,16 @@ def seed_if_empty():
         for u in USERS:
             password_hash, salt = auth.hash_password(u["password"])
             conn.execute(
-                "INSERT INTO users (username, password_hash, salt, role, full_name) VALUES (%s, %s, %s, %s, %s)",
-                (u["username"], password_hash, salt, u["role"], u["full_name"]),
+                """INSERT INTO users (username, password_hash, salt, role, full_name, organization_id)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (u["username"], password_hash, salt, u["role"], u["full_name"], organization_id),
             )
 
         mrn_to_id = {}
         for p in PATIENTS:
             row = conn.execute(
-                "INSERT INTO patients (mrn, name, dob, sex) VALUES (%s, %s, %s, %s) RETURNING id",
-                (p["mrn"], p["name"], p["dob"], p["sex"]),
+                "INSERT INTO patients (mrn, name, dob, sex, organization_id) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (p["mrn"], p["name"], p["dob"], p["sex"], organization_id),
             ).fetchone()
             mrn_to_id[p["mrn"]] = row["id"]
 

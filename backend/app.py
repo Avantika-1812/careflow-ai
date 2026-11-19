@@ -1,5 +1,7 @@
 import io
 import json
+import re
+import secrets
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,6 +59,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SignupRequest(BaseModel):
+    organization_name: str
+    full_name: str
+    username: str
+    password: str
+
+
 class PatientCreate(BaseModel):
     mrn: str
     name: str
@@ -85,7 +94,8 @@ class MessageCreate(BaseModel):
 @app.on_event("startup")
 def startup_event():
     db.init_db()
-    seed.seed_if_empty()
+    default_org_id = db.ensure_default_organization()
+    seed.seed_if_empty(default_org_id)
     rag.heal_vector_store_if_empty()
 
 
@@ -98,13 +108,73 @@ def health():
 
 # ---------- Auth ----------
 
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug or "org"
+
+
+@app.post("/signup")
+@limiter.limit(config.LOGIN_RATE_LIMIT)
+def signup(request: Request, req: SignupRequest):
+    """Self-serve: creates a brand-new organization plus its first admin account. This is
+    the thing that makes the product actually sellable rather than something only I can
+    provision -- a hospital finds the site, signs up, and is isolated from every other
+    hospital on the platform from the first row written."""
+    org_name = req.organization_name.strip()
+    full_name = req.full_name.strip()
+    username = req.username.strip()
+    if not org_name or not full_name or not username:
+        raise HTTPException(status_code=400, detail="Organization name, your name, and a username are required.")
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    base_slug = _slugify(org_name)
+    password_hash, salt = auth.hash_password(req.password)
+
+    with db.session() as conn:
+        slug = base_slug
+        for attempt in range(6):
+            exists = conn.execute("SELECT id FROM organizations WHERE slug = %s", (slug,)).fetchone()
+            if not exists:
+                break
+            slug = f"{base_slug}-{secrets.token_hex(2)}"
+        else:
+            raise HTTPException(status_code=500, detail="Could not allocate a unique organization slug.")
+
+        org_row = conn.execute(
+            "INSERT INTO organizations (name, slug, plan) VALUES (%s, %s, 'trial') RETURNING id, name",
+            (org_name, slug),
+        ).fetchone()
+
+        try:
+            user_row = conn.execute(
+                """INSERT INTO users (username, password_hash, salt, role, full_name, organization_id)
+                   VALUES (%s, %s, %s, 'admin', %s, %s) RETURNING id""",
+                (username, password_hash, salt, full_name, org_row["id"]),
+            ).fetchone()
+        except Exception:
+            raise HTTPException(status_code=400, detail="That username is already taken.")
+
+    token = auth.create_access_token(user_row["id"], username, "admin", full_name, org_row["id"], org_row["name"])
+    return {
+        "token": token,
+        "user": {
+            "id": user_row["id"], "username": username, "role": "admin", "full_name": full_name,
+            "organization_id": org_row["id"], "organization_name": org_row["name"],
+        },
+    }
+
+
 @app.post("/auth/login")
 @limiter.limit(config.LOGIN_RATE_LIMIT)
 def login(request: Request, req: LoginRequest):
     user = auth.authenticate(req.username, req.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid username or password.")
-    token = auth.create_access_token(user["id"], user["username"], user["role"], user["full_name"])
+    token = auth.create_access_token(
+        user["id"], user["username"], user["role"], user["full_name"],
+        user["organization_id"], user["organization_name"],
+    )
     return {
         "token": token,
         "user": {
@@ -112,6 +182,8 @@ def login(request: Request, req: LoginRequest):
             "username": user["username"],
             "role": user["role"],
             "full_name": user["full_name"],
+            "organization_id": user["organization_id"],
+            "organization_name": user["organization_name"],
         },
     }
 
@@ -128,19 +200,17 @@ PATIENT_LIST_LIMIT = 100
 
 @app.get("/patients")
 def list_patients(user: dict = Depends(auth.require_role("clinician", "admin")), q: str | None = None):
-    """Capped + searched, not a full dump: with a large imported dataset (thousands of
-    patients), returning everything unfiltered made the sidebar unusable -- thousands of DOM
-    nodes, and nothing else in the sidebar reachable without scrolling past all of them. The
-    sidebar's search box (debounced, hits this same endpoint) is the intended way to narrow
-    down to one patient; this endpoint only ever returns a bounded page plus a total count so
-    the UI can say "showing X of Y"."""
+    """Capped + searched, not a full dump (see git history for why), and always scoped to the
+    caller's own organization -- a patient from one hospital must never appear in another
+    hospital's list, full stop."""
+    org_id = user["organization_id"]
     with db.session() as conn:
         if q:
-            where = "WHERE name ILIKE %s OR mrn ILIKE %s"
-            params = (f"%{q}%", f"%{q}%")
+            where = "WHERE organization_id = %s AND (name ILIKE %s OR mrn ILIKE %s)"
+            params = (org_id, f"%{q}%", f"%{q}%")
         else:
-            where = ""
-            params = ()
+            where = "WHERE organization_id = %s"
+            params = (org_id,)
         total = conn.execute(f"SELECT count(*) AS c FROM patients {where}", params).fetchone()["c"]
         rows = conn.execute(
             f"SELECT * FROM patients {where} ORDER BY name LIMIT %s", params + (PATIENT_LIST_LIMIT,)
@@ -153,12 +223,21 @@ def create_patient(req: PatientCreate, user: dict = Depends(auth.require_role("a
     with db.session() as conn:
         try:
             row = conn.execute(
-                "INSERT INTO patients (mrn, name, dob, sex) VALUES (%s, %s, %s, %s) RETURNING *",
-                (req.mrn, req.name, req.dob, req.sex),
+                "INSERT INTO patients (mrn, name, dob, sex, organization_id) VALUES (%s, %s, %s, %s, %s) RETURNING *",
+                (req.mrn, req.name, req.dob, req.sex, user["organization_id"]),
             ).fetchone()
         except Exception:
-            raise HTTPException(status_code=400, detail="A patient with that MRN already exists.")
+            raise HTTPException(status_code=400, detail="A patient with that MRN already exists in your organization.")
     return dict(row)
+
+
+def _get_org_patient(conn, patient_id: int, organization_id: int):
+    """Fetch a patient only if it belongs to the given organization -- the core cross-tenant
+    guard. Returns None (treated as 404/400 by callers) rather than ever returning another
+    organization's patient."""
+    return conn.execute(
+        "SELECT * FROM patients WHERE id = %s AND organization_id = %s", (patient_id, organization_id)
+    ).fetchone()
 
 
 # ---------- Documents ----------
@@ -167,6 +246,8 @@ def create_patient(req: PatientCreate, user: dict = Depends(auth.require_role("a
 def list_documents(user: dict = Depends(auth.get_current_user), patient_id: int | None = None):
     with db.session() as conn:
         if patient_id is not None:
+            if _get_org_patient(conn, patient_id, user["organization_id"]) is None:
+                raise HTTPException(status_code=404, detail="Patient not found.")
             rows = conn.execute(
                 "SELECT * FROM documents WHERE patient_id = %s OR patient_id IS NULL ORDER BY created_at DESC",
                 (patient_id,),
@@ -185,8 +266,11 @@ def list_documents(user: dict = Depends(auth.get_current_user), patient_id: int 
 def get_document(document_id: int, user: dict = Depends(auth.get_current_user)):
     with db.session() as conn:
         row = conn.execute("SELECT * FROM documents WHERE id = %s", (document_id,)).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Document not found.")
+        if row is None:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        if row["patient_id"] is not None:
+            if _get_org_patient(conn, row["patient_id"], user["organization_id"]) is None:
+                raise HTTPException(status_code=404, detail="Document not found.")
     if user["role"] not in row["allowed_roles"].split(","):
         raise HTTPException(status_code=403, detail="You don't have access to this document.")
     return dict(row)
@@ -227,8 +311,7 @@ async def upload_document(
 
     with db.session() as conn:
         if patient_id is not None:
-            exists = conn.execute("SELECT id FROM patients WHERE id = %s", (patient_id,)).fetchone()
-            if exists is None:
+            if _get_org_patient(conn, patient_id, user["organization_id"]) is None:
                 raise HTTPException(status_code=400, detail="Patient not found.")
         result = rag.ingest_document(
             conn=conn,
@@ -245,6 +328,16 @@ async def upload_document(
 
 @app.delete("/documents/{document_id}")
 def delete_document(document_id: int, user: dict = Depends(auth.require_role("admin"))):
+    with db.session() as conn:
+        row = conn.execute("SELECT * FROM documents WHERE id = %s", (document_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        if row["patient_id"] is None:
+            # Shared platform content (e.g. the clinical reference library) isn't owned by any
+            # one organization -- no tenant admin should be able to delete it for everyone else.
+            raise HTTPException(status_code=403, detail="Shared reference documents cannot be deleted here.")
+        if _get_org_patient(conn, row["patient_id"], user["organization_id"]) is None:
+            raise HTTPException(status_code=404, detail="Document not found.")
     rag.delete_document(document_id)
     return {"deleted": True}
 
@@ -257,10 +350,10 @@ def create_conversation(req: ConversationCreate, user: dict = Depends(auth.get_c
         raise HTTPException(status_code=403, detail="Your role cannot access patient-specific conversations.")
     with db.session() as conn:
         if req.patient_id is not None:
-            exists = conn.execute("SELECT id, name FROM patients WHERE id = %s", (req.patient_id,)).fetchone()
-            if exists is None:
+            patient = _get_org_patient(conn, req.patient_id, user["organization_id"])
+            if patient is None:
                 raise HTTPException(status_code=400, detail="Patient not found.")
-            title = req.title or f"Chat - {exists['name']}"
+            title = req.title or f"Chat - {patient['name']}"
         else:
             title = req.title or "General guideline chat"
         row = conn.execute(
@@ -310,7 +403,15 @@ def list_messages(conversation_id: int, user: dict = Depends(auth.get_current_us
 def post_message(conversation_id: int, req: MessageCreate, user: dict = Depends(auth.get_current_user)):
     """Streams the assistant's answer token-by-token over Server-Sent Events. The user's
     message is persisted immediately; the assistant's message + audit log entry are persisted
-    once streaming completes, inside the same generator (not a separate request)."""
+    once streaming completes, inside the same generator (not a separate request).
+
+    Note on tenant isolation: retrieval itself doesn't need to know about organizations --
+    conv["patient_id"] was already verified to belong to the caller's org back when the
+    conversation was created (create_conversation), and shared platform documents (patient_id
+    IS NULL) are intentionally available to every organization. So the only places that need
+    an explicit organization_id check are wherever a patient_id is first accepted from the
+    client (conversation creation, document upload/listing) -- not every downstream use of it.
+    """
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="Query must not be empty.")
 
@@ -355,42 +456,58 @@ def post_message(conversation_id: int, req: MessageCreate, user: dict = Depends(
 
 
 # ---------- Admin ----------
+# Every query below is scoped to the caller's organization_id -- an admin at one hospital
+# must only ever see their own hospital's users, patients, and query history.
 
 @app.get("/admin/analytics")
 def analytics(user: dict = Depends(auth.require_role("admin"))):
+    org_id = user["organization_id"]
     with db.session() as conn:
         totals = conn.execute(
             """SELECT
-                 (SELECT count(*) FROM audit_logs) AS total_queries,
-                 (SELECT count(*) FROM patients) AS total_patients,
-                 (SELECT count(*) FROM documents) AS total_documents,
-                 (SELECT count(DISTINCT user_id) FROM audit_logs) AS active_users"""
+                 (SELECT count(*) FROM audit_logs a JOIN users u ON u.id = a.user_id WHERE u.organization_id = %s) AS total_queries,
+                 (SELECT count(*) FROM patients WHERE organization_id = %s) AS total_patients,
+                 (SELECT count(*) FROM documents d LEFT JOIN patients p ON p.id = d.patient_id
+                    WHERE p.organization_id = %s OR d.patient_id IS NULL) AS total_documents,
+                 (SELECT count(DISTINCT a.user_id) FROM audit_logs a JOIN users u ON u.id = a.user_id WHERE u.organization_id = %s) AS active_users""",
+            (org_id, org_id, org_id, org_id),
         ).fetchone()
 
         queries_per_day = conn.execute(
-            """SELECT date_trunc('day', created_at)::date AS day, count(*) AS n
-               FROM audit_logs
-               WHERE created_at >= now() - interval '14 days'
-               GROUP BY 1 ORDER BY 1"""
+            """SELECT date_trunc('day', a.created_at)::date AS day, count(*) AS n
+               FROM audit_logs a JOIN users u ON u.id = a.user_id
+               WHERE u.organization_id = %s AND a.created_at >= now() - interval '14 days'
+               GROUP BY 1 ORDER BY 1""",
+            (org_id,),
         ).fetchall()
 
         confidence_breakdown = conn.execute(
-            """SELECT coalesce(confidence, 'unknown') AS confidence, count(*) AS n
-               FROM audit_logs GROUP BY 1"""
+            """SELECT coalesce(a.confidence, 'unknown') AS confidence, count(*) AS n
+               FROM audit_logs a JOIN users u ON u.id = a.user_id
+               WHERE u.organization_id = %s GROUP BY 1""",
+            (org_id,),
         ).fetchall()
 
         role_breakdown = conn.execute(
-            "SELECT role, count(*) AS n FROM audit_logs GROUP BY 1 ORDER BY 2 DESC"
+            """SELECT a.role, count(*) AS n FROM audit_logs a JOIN users u ON u.id = a.user_id
+               WHERE u.organization_id = %s GROUP BY 1 ORDER BY 2 DESC""",
+            (org_id,),
         ).fetchall()
 
         top_patients = conn.execute(
             """SELECT p.name, count(*) AS n FROM audit_logs a
+               JOIN users u ON u.id = a.user_id
                JOIN patients p ON p.id = a.patient_id
-               GROUP BY p.name ORDER BY n DESC LIMIT 6"""
+               WHERE u.organization_id = %s
+               GROUP BY p.name ORDER BY n DESC LIMIT 6""",
+            (org_id,),
         ).fetchall()
 
         doc_type_breakdown = conn.execute(
-            "SELECT doc_type, count(*) AS n FROM documents GROUP BY 1 ORDER BY 2 DESC"
+            """SELECT d.doc_type, count(*) AS n FROM documents d LEFT JOIN patients p ON p.id = d.patient_id
+               WHERE p.organization_id = %s OR d.patient_id IS NULL
+               GROUP BY 1 ORDER BY 2 DESC""",
+            (org_id,),
         ).fetchall()
 
     return {
@@ -408,9 +525,11 @@ def audit_logs(user: dict = Depends(auth.require_role("admin")), limit: int = 10
     with db.session() as conn:
         rows = conn.execute(
             """SELECT a.*, p.name AS patient_name FROM audit_logs a
+               JOIN users u ON u.id = a.user_id
                LEFT JOIN patients p ON p.id = a.patient_id
+               WHERE u.organization_id = %s
                ORDER BY a.created_at DESC LIMIT %s OFFSET %s""",
-            (limit, offset),
+            (user["organization_id"], limit, offset),
         ).fetchall()
     out = []
     for r in rows:
@@ -424,7 +543,8 @@ def audit_logs(user: dict = Depends(auth.require_role("admin")), limit: int = 10
 def list_users(user: dict = Depends(auth.require_role("admin"))):
     with db.session() as conn:
         rows = conn.execute(
-            "SELECT id, username, role, full_name, created_at FROM users ORDER BY created_at DESC"
+            "SELECT id, username, role, full_name, created_at FROM users WHERE organization_id = %s ORDER BY created_at DESC",
+            (user["organization_id"],),
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -442,10 +562,10 @@ def create_user(req: UserCreate, user: dict = Depends(auth.require_role("admin")
     with db.session() as conn:
         try:
             row = conn.execute(
-                """INSERT INTO users (username, password_hash, salt, role, full_name)
-                   VALUES (%s, %s, %s, %s, %s)
+                """INSERT INTO users (username, password_hash, salt, role, full_name, organization_id)
+                   VALUES (%s, %s, %s, %s, %s, %s)
                    RETURNING id, username, role, full_name, created_at""",
-                (req.username.strip(), password_hash, salt, req.role, req.full_name.strip()),
+                (req.username.strip(), password_hash, salt, req.role, req.full_name.strip(), user["organization_id"]),
             ).fetchone()
         except Exception:
             raise HTTPException(status_code=400, detail="A user with that username already exists.")

@@ -6,6 +6,13 @@ from psycopg_pool import ConnectionPool
 from . import config
 
 SCHEMA_STATEMENTS = [
+    """CREATE TABLE IF NOT EXISTS organizations (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        plan TEXT NOT NULL DEFAULT 'trial',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )""",
     """CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
@@ -13,14 +20,16 @@ SCHEMA_STATEMENTS = [
         salt TEXT NOT NULL,
         role TEXT NOT NULL,
         full_name TEXT NOT NULL,
+        organization_id INTEGER REFERENCES organizations(id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )""",
     """CREATE TABLE IF NOT EXISTS patients (
         id SERIAL PRIMARY KEY,
-        mrn TEXT UNIQUE NOT NULL,
+        mrn TEXT NOT NULL,
         name TEXT NOT NULL,
         dob TEXT,
         sex TEXT,
+        organization_id INTEGER REFERENCES organizations(id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )""",
     """CREATE TABLE IF NOT EXISTS documents (
@@ -62,6 +71,20 @@ SCHEMA_STATEMENTS = [
         confidence TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )""",
+    # --- Migration statements (idempotent -- safe to re-run against an existing database
+    # created before organizations/multi-tenancy existed) ---
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id)",
+    "ALTER TABLE patients ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id)",
+    # MRN used to be globally unique; it must be unique per-organization instead, since two
+    # different hospitals legitimately reuse the same MRN numbering scheme.
+    "ALTER TABLE patients DROP CONSTRAINT IF EXISTS patients_mrn_key",
+    """DO $$ BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'patients_org_mrn_key'
+        ) THEN
+            ALTER TABLE patients ADD CONSTRAINT patients_org_mrn_key UNIQUE (organization_id, mrn);
+        END IF;
+    END $$""",
 ]
 
 _pool = ConnectionPool(
@@ -89,3 +112,22 @@ def init_db():
     with session() as conn:
         for stmt in SCHEMA_STATEMENTS:
             conn.execute(stmt)
+
+
+def ensure_default_organization() -> int:
+    """Returns the id of a default organization, creating "Demo General Hospital" if none
+    exists yet, and backfills organization_id onto any pre-existing users/patients that predate
+    multi-tenancy (e.g. this session's already-imported Synthea/MTSamples/Kaggle data)."""
+    with session() as conn:
+        row = conn.execute("SELECT id FROM organizations ORDER BY id LIMIT 1").fetchone()
+        if row:
+            org_id = row["id"]
+        else:
+            row = conn.execute(
+                "INSERT INTO organizations (name, slug, plan) VALUES (%s, %s, %s) RETURNING id",
+                ("Demo General Hospital", "demo-general-hospital", "trial"),
+            ).fetchone()
+            org_id = row["id"]
+        conn.execute("UPDATE users SET organization_id = %s WHERE organization_id IS NULL", (org_id,))
+        conn.execute("UPDATE patients SET organization_id = %s WHERE organization_id IS NULL", (org_id,))
+    return org_id

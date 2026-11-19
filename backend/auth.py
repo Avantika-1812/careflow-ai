@@ -24,13 +24,18 @@ def verify_password(password: str, password_hash: str, salt: str) -> bool:
     return secrets.compare_digest(candidate, password_hash)
 
 
-def create_access_token(user_id: int, username: str, role: str, full_name: str) -> str:
+def create_access_token(
+    user_id: int, username: str, role: str, full_name: str,
+    organization_id: int, organization_name: str,
+) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "username": username,
         "role": role,
         "full_name": full_name,
+        "organization_id": organization_id,
+        "organization_name": organization_name,
         "iat": now,
         "exp": now + timedelta(hours=config.JWT_EXPIRY_HOURS),
     }
@@ -55,6 +60,8 @@ def get_current_user(creds: HTTPAuthorizationCredentials | None = Depends(_beare
         "username": payload["username"],
         "role": payload["role"],
         "full_name": payload["full_name"],
+        "organization_id": payload["organization_id"],
+        "organization_name": payload["organization_name"],
     }
 
 
@@ -68,7 +75,12 @@ def require_role(*roles: str):
 
 def authenticate(username: str, password: str) -> dict | None:
     with db.session() as conn:
-        row = conn.execute("SELECT * FROM users WHERE username = %s", (username,)).fetchone()
+        row = conn.execute(
+            """SELECT u.*, o.name AS organization_name FROM users u
+               LEFT JOIN organizations o ON o.id = u.organization_id
+               WHERE u.username = %s""",
+            (username,),
+        ).fetchone()
     if row is None:
         return None
     if not verify_password(password, row["password_hash"], row["salt"]):
