@@ -394,7 +394,11 @@ function renderMessage(m) {
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-  bubble.textContent = m.content;
+  if (m.role === 'assistant') {
+    bubble.innerHTML = renderMarkdown(m.content);
+  } else {
+    bubble.textContent = m.content;
+  }
   wrap.appendChild(bubble);
 
   if (m.role === 'assistant') {
@@ -485,7 +489,7 @@ el('chatForm').addEventListener('submit', async (e) => {
         } else if (event.type === 'token') {
           if (firstToken) { typing.remove(); firstToken = false; }
           fullAnswer += event.text;
-          liveBubble.textContent = fullAnswer;
+          liveBubble.innerHTML = renderMarkdown(fullAnswer);
           container.scrollTop = container.scrollHeight;
         } else if (event.type === 'done') {
           fullAnswer = event.answer;
@@ -790,6 +794,39 @@ function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Minimal markdown -> HTML for assistant answers. The model's system prompt asks for bold
+// headers and bullet points, but the frontend was just dumping raw text, so users saw literal
+// "**text**" and "- item" instead of formatting. Escapes first, then only ever injects tags
+// we wrote ourselves -- the model's own text (and anything it echoes from an uploaded
+// document) never becomes live HTML, so this can't become an XSS vector.
+function renderMarkdown(raw) {
+  const escaped = escapeHtml(raw);
+  const withInline = escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
+
+  const lines = withInline.split('\n');
+  const out = [];
+  let inList = false;
+  const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const bullet = trimmed.match(/^[-*]\s+(.*)/);
+    if (bullet) {
+      if (!inList) { out.push('<ul>'); inList = true; }
+      out.push(`<li>${bullet[1]}</li>`);
+    } else if (trimmed === '') {
+      closeList();
+    } else {
+      closeList();
+      out.push(`<p>${trimmed}</p>`);
+    }
+  }
+  closeList();
+  return out.join('');
 }
 
 // ---------- Entry point ----------
