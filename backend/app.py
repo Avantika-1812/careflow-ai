@@ -240,6 +240,18 @@ def _get_org_patient(conn, patient_id: int, organization_id: int):
     ).fetchone()
 
 
+@app.get("/patients/{patient_id}")
+def get_patient(patient_id: int, user: dict = Depends(auth.require_role("clinician", "admin"))):
+    """Single-patient lookup, used by the frontend's patient banner when the patient in the
+    current conversation isn't in the (capped) sidebar list -- e.g. opening an old conversation
+    about a patient who no longer sorts into the first page of results."""
+    with db.session() as conn:
+        row = _get_org_patient(conn, patient_id, user["organization_id"])
+    if row is None:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+    return dict(row)
+
+
 # ---------- Documents ----------
 
 @app.get("/documents")

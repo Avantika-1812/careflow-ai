@@ -151,33 +151,32 @@ async function boot() {
   renderConversationList();
 }
 
+const NAV_ICONS = {
+  chat: '<path d="M3 5h18v11H9l-4 4V16H3V5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>',
+  analytics: '<path d="M4 20V11M12 20V4M20 20v-7M3 20h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  audit: '<path d="M5 3h14v18H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  users: '<circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>',
+};
+
+function railButton(view, label, iconKey) {
+  const btn = document.createElement('button');
+  btn.className = state.view === view ? 'active' : '';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.innerHTML = `<svg viewBox="0 0 24 24">${NAV_ICONS[iconKey]}</svg>`;
+  btn.onclick = () => switchView(view);
+  return btn;
+}
+
 function renderTopNav() {
-  const nav = el('topbarNav');
-  nav.innerHTML = '';
-  const chatBtn = document.createElement('button');
-  chatBtn.textContent = 'Chat';
-  chatBtn.className = state.view === 'chat' ? 'active' : '';
-  chatBtn.onclick = () => switchView('chat');
-  nav.appendChild(chatBtn);
+  const rail = el('iconRail');
+  rail.innerHTML = '';
+  rail.appendChild(railButton('chat', 'Chat', 'chat'));
 
   if (state.user.role === 'admin') {
-    const overviewBtn = document.createElement('button');
-    overviewBtn.textContent = 'Overview';
-    overviewBtn.className = state.view === 'analytics' ? 'active' : '';
-    overviewBtn.onclick = () => switchView('analytics');
-    nav.appendChild(overviewBtn);
-
-    const auditBtn = document.createElement('button');
-    auditBtn.textContent = 'Audit Log';
-    auditBtn.className = state.view === 'audit' ? 'active' : '';
-    auditBtn.onclick = () => switchView('audit');
-    nav.appendChild(auditBtn);
-
-    const usersBtn = document.createElement('button');
-    usersBtn.textContent = 'Users';
-    usersBtn.className = state.view === 'users' ? 'active' : '';
-    usersBtn.onclick = () => switchView('users');
-    nav.appendChild(usersBtn);
+    rail.appendChild(railButton('analytics', 'Overview', 'analytics'));
+    rail.appendChild(railButton('audit', 'Audit Log', 'audit'));
+    rail.appendChild(railButton('users', 'Users', 'users'));
   }
 }
 
@@ -281,7 +280,7 @@ async function openConversation(conv) {
     ? 'Scoped to this patient’s authorized documents + hospital guidelines'
     : 'Scoped to hospital guidelines only';
 
-  renderPatientBanner(conv.patient_id);
+  await renderPatientBanner(conv.patient_id);
 
   el('chatForm').classList.remove('hidden');
   el('chatEmptyState').classList.add('hidden');
@@ -310,21 +309,30 @@ function calcAge(dob) {
   return age;
 }
 
-function renderPatientBanner(patientId) {
+async function renderPatientBanner(patientId) {
   const banner = el('patientBanner');
   if (!patientId) {
     banner.classList.add('hidden');
     banner.innerHTML = '';
     return;
   }
-  const p = state.patients.find(pt => pt.id === patientId);
+  // The sidebar list is capped (see /patients), so the patient for this conversation may not
+  // be in it -- e.g. reopening an old conversation about someone who doesn't sort into the
+  // first page of results. Fall back to a direct lookup rather than silently showing nothing.
+  let p = state.patients.find(pt => pt.id === patientId);
   if (!p) {
-    banner.classList.add('hidden');
-    banner.innerHTML = '';
-    return;
+    try {
+      p = await api(`/patients/${patientId}`);
+    } catch (err) {
+      banner.classList.add('hidden');
+      banner.innerHTML = '';
+      return;
+    }
   }
   const age = calcAge(p.dob);
+  const initials = p.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
   banner.innerHTML = `
+    <div class="patient-banner-avatar">${escapeHtml(initials)}</div>
     <div class="patient-banner-field">
       <div class="patient-banner-label">Patient</div>
       <div class="patient-banner-value name">${escapeHtml(p.name)}</div>
@@ -626,7 +634,7 @@ async function loadAuditLog() {
 }
 
 // ---------- Admin analytics ----------
-const CHART_COLOR = '#0d5c56';
+const CHART_COLOR = '#3142c4';
 const CONFIDENCE_COLORS = { high: '#1c6b43', medium: '#946600', low: '#a3291f', unknown: '#5e6a63' };
 
 function svgBarChart(rows, { labelKey, valueKey, color = CHART_COLOR, maxBars = 8 }) {
