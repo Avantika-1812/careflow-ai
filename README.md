@@ -54,7 +54,7 @@ on its free tier — fine for development, but swap it for a BAA-covered provide
   queries by role, most-queried patients, document library composition — built from the same
   audit log data, visualized instead of left as a raw table.
 - **Streaming responses**: answers appear token-by-token (Server-Sent Events) instead of waiting
-  for the full completion.
+  for the full completion, with markdown (bold, bullet lists) rendered live as it streams.
 - **Rate limiting, security headers, upload size caps**: see "Security hardening" below.
 
 ## Architecture
@@ -134,6 +134,11 @@ docker compose up --build
 ```
 
 This starts Postgres and the app together. Open http://localhost:8000.
+
+**On Windows**: install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL2
+backend) and [Git for Windows](https://git-scm.com/download/win), then run the same commands above
+in a terminal (PowerShell, or Git Bash) — `copy .env.example .env` instead of `cp` in plain
+PowerShell. Everything else, including Option B below, is identical once Docker Desktop is running.
 
 ### Option B: Run locally against a Postgres container
 
@@ -252,7 +257,8 @@ catches the *empty* case, not this *stale* case.)
   **+ Upload document**, and upload a `.txt` or `.pdf`. It's chunked and searchable immediately.
 - **New users**: admins create accounts from the **Users** tab (full name, username, temporary
   password, role).
-- **New patients**: admins can add patients via `POST /patients` (no UI form yet).
+- **New patients**: admins can add patients from the **+** button next to the patient search box
+  (same pattern as Add User), or via `POST /patients` directly.
 - **Bulk patients**: see "Data" above for Synthea import, or edit `backend/seed.py` directly.
 
 ## Known limitations / what's still missing before production
