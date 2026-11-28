@@ -300,3 +300,13 @@ catches the *empty* case, not this *stale* case.)
   but were never embedded on that filesystem. This also means **Chroma won't survive running
   multiple app replicas** behind a load balancer without a shared volume or a real networked
   vector DB (e.g. a hosted Chroma, Qdrant, or pgvector) — fine for one instance, not for scaling out.
+
+  ## 🎥 Project Demo
+
+Watch the 5-minute demonstration of CareFlow AI:
+
+[▶️ Watch CareFlow AI Demo Video](https://drive.google.com/file/d/1PKQRJ3bZkrW4_EtybHB5yd6had0T4fU6/view?usp=sharing)
+
+This video demonstrates the application's interface, patient document workflow, and AI-powered question-answering features.
+
+> Demo uses synthetic patient data only. CareFlow AI is an information-support tool, not a diagnostic system.
