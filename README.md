@@ -3,126 +3,252 @@
 
 A RAG-based assistant that retrieves and summarizes information from authorized hospital documents using natural-language queries, with login/role-based access control, per-patient scoping, source citations, a grounding/confidence check on every answer, and a full audit trail.
 
-## 🎥 Project Demo
+## 🎥 Project Demo Video
 
-Watch the 5-minute demonstration of CareFlow AI:
+Watch the **5-minute CareFlow AI project demonstration** to see how the application works in practice.
 
-[▶️ Watch CareFlow AI Demo Video](https://drive.google.com/file/d/1PKQRJ3bZkrW4_EtybHB5yd6had0T4fU6/view?usp=sharing)
+**▶️ [Watch the CareFlow AI Demo Video](https://drive.google.com/file/d/1PKQRJ3bZkrW4_EtybHB5yd6had0T4fU6/view?usp=sharing)**
 
-This video demonstrates the application's interface, patient document workflow, and AI-powered question-answering features.
+The video provides a walkthrough of the running application, including the user interface, patient/document features, and AI-powered question-answering experience.
 
-> Demo uses synthetic patient data only. CareFlow AI is an information-support tool, not a diagnostic system. Clinical decisions remain the responsibility of licensed healthcare professionals.
+> The demonstration uses synthetic patient data only. CareFlow AI is an information-support tool and is not intended to provide diagnoses or replace professional clinical judgment.
 
----
+## ⚠️ Before This Touches Real Patient Data
 
-## ⚠️ Before this touches real patient data
+**This codebase is not yet cleared for real PHI.** Good engineering (what's in this repository) is necessary but not sufficient. Real patient data additionally requires, at minimum:
 
-**This codebase is not yet cleared for real PHI.** Good engineering (what's in this repo) is necessary but not sufficient — real patient data additionally requires, at minimum:
+1. **A signed Business Associate Agreement (BAA)** with every vendor in the data path. Groq's free tier (the default LLM here) does not offer one. You would need Azure OpenAI, AWS Bedrock, or another HIPAA-eligible provider under a BAA before processing real PHI.
+2. **Institutional privacy/compliance approval.** This is an organizational and legal requirement, not something a codebase can satisfy on its own.
+3. **A security review** of the specific deployment, including network exposure, secrets management, backup/retention policy, and incident response.
+4. **TLS everywhere and encryption at rest.** This repository runs plain HTTP locally. A real deployment needs HTTPS/TLS termination and encryption for the database and backups.
 
-1. **A signed Business Associate Agreement (BAA)** with every vendor in the data path. Groq's free tier (the default LLM here) does not offer one — you'd need Azure OpenAI, AWS Bedrock, or another HIPAA-eligible provider instead, under a BAA, before a single real query runs.
-2. **Your institution's privacy/compliance office sign-off.** This is an organizational and legal requirement, not something a codebase can satisfy on its own.
-3. **A security review** of this specific deployment (network exposure, secrets management, backup/retention policy, incident response plan) — see "Known limitations" below for the concrete gaps as of now.
-4. **TLS everywhere** (this repo runs plain HTTP locally; a real deployment needs HTTPS termination in front of it) and encryption at rest for the database and backups.
+Until all of that is in place, treat every patient in this system as synthetic.
 
-Until all of that is in place, treat every patient in this system as synthetic — because right now, all of them are (see "Data" below).
+## 💰 Cost
 
-## Cost
+The LLM is [Groq](https://console.groq.com), running an open model (default: `openai/gpt-oss-20b`) on its free tier.
 
-The LLM is [Groq](https://console.groq.com) running an open model (default: `openai/gpt-oss-20b`) on its free tier — fine for development, but swap it for a BAA-covered provider before go-live (see above).
+The free tier is suitable for development and demonstration. A production deployment involving real PHI would require a suitable provider and an appropriate signed BAA.
 
-## Features
+## ✨ Features
 
-- **Multi-tenant**: Any hospital can self-serve sign up (landing page → "Start free trial") and gets a fully isolated organization — its own patients, users, conversations, and audit log, invisible to every other tenant on the platform. Isolation is enforced at the query layer (every patient-scoped endpoint filters by `organization_id`), not just hidden in the UI. A shared reference library (hospital guidelines, the MTSamples clinical corpus) is available to every tenant by design — included value, not per-tenant data.
-- **Login + roles**: JWT-based auth with role-gated access (clinician, admin, staff) — patient list, documents, conversations, and the admin audit log all respect it.
-- **User management**: Organization admins create individual accounts and assign roles from the Users tab. Hospital organizations can register through the signup page, but individual users cannot self-register.
-- **Multi-patient, patient-scoped RAG**: Every conversation is scoped to one patient (or to hospital guidelines only); retrieval is structurally incapable of leaking one patient's data into another's answer, or leaking any patient data to a `staff` account.
-- **Conversation memory**: Multi-turn chat; follow-ups use prior turns as context.
-- **Document upload**: Clinicians/admins upload `.txt`/`.pdf` files per patient (or as a global guideline), chunked and indexed immediately.
-- **Document viewer**: Click any cited source to read the original document.
-- **Grounding / confidence check**: A deterministic high/medium/low badge on every answer, based on how much of the answer's wording is actually traceable to the retrieved context.
-- **Audit log**: Every query, by whom, which role, which patient, which documents were retrieved.
-- **Analytics dashboard** (admin → Overview): Query volume over time, confidence distribution, queries by role, most-queried patients, document library composition — built from the same audit log data, visualized instead of left as a raw table.
-- **Streaming responses**: Answers appear token-by-token (Server-Sent Events) instead of waiting for the full completion, with markdown (bold, bullet lists) rendered live as it streams.
-- **Rate limiting, security headers, upload size caps**: See "Security hardening" below.
+- **Multi-tenant architecture:** Hospitals can register an organization through the signup flow. Each organization gets isolated patients, users, conversations, and audit logs.
+- **Login + roles:** JWT-based authentication with role-gated access for clinicians, admins, and staff.
+- **User management:** Organization admins can create accounts and assign roles from the Users tab.
+- **Patient-scoped RAG:** Every conversation is scoped to one patient or to shared hospital guidelines.
+- **Role-aware retrieval:** Documents are filtered according to the user's role and patient context.
+- **Conversation memory:** Multi-turn chat; follow-up questions use prior turns as context.
+- **Document upload:** Clinicians/admins can upload `.txt` and `.pdf` files per patient or as a shared guideline.
+- **Document viewer:** Users can click cited sources to read the original document.
+- **Source citations:** Responses identify the retrieved documents used to generate an answer.
+- **Grounding/confidence check:** A deterministic high/medium/low badge estimates how much of an answer's wording is traceable to retrieved context.
+- **Audit log:** Records each query, user, role, patient context, and retrieved documents.
+- **Analytics dashboard:** Admin overview includes query volume, confidence distribution, queries by role, most-queried patients, and document-library composition.
+- **Streaming responses:** Answers appear progressively using Server-Sent Events (SSE), with Markdown rendered as the response streams.
+- **Security controls:** Includes rate limiting, security headers, upload-size limits, parameterized SQL, and production configuration checks.
 
-## Architecture
+## 🧰 Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | HTML, CSS, Vanilla JavaScript |
+| Backend | Python, FastAPI |
+| Relational Database | PostgreSQL |
+| Vector Database | ChromaDB |
+| LLM Provider | Groq |
+| Retrieval Approach | Retrieval-Augmented Generation (RAG) |
+| Authentication | JWT, PBKDF2 password hashing |
+| Containerization | Docker, Docker Compose |
+
+## 🏗️ Architecture
 
 ```text
-documents/           Seed documents (patient records, labs, prescriptions, guideline) -- synthetic
+documents/              Seed documents (synthetic patient records, labs, prescriptions, guidelines)
+
 scripts/
-  import_synthea.py    Converts Synthea-generated synthetic patients into CareFlow's doc format
+  import_synthea.py     Imports Synthea-generated synthetic patients
+
 backend/
-  config.py             Settings: DB URL, JWT, rate limits, CORS, grounding thresholds
-  db.py                 Postgres schema + pooled connections (psycopg3 + psycopg_pool)
-  auth.py               Password hashing (PBKDF2), JWT issue/verify, role-gating dependencies
-  rag.py                Chunking, Chroma indexing, patient/role-scoped retrieval,
-                        conversation-aware Groq generation, grounding heuristic
-  seed.py               One-time seed: demo users, patients, and hand-written documents
-  app.py                FastAPI app: auth, patients, documents, conversations, admin, rate
-                        limiting, security headers
+  config.py             Application settings: DB URL, JWT, rate limits, CORS
+  db.py                 PostgreSQL schema and pooled connections
+  auth.py               Password hashing, JWT issue/verify, role-gating
+  rag.py                Chunking, Chroma indexing, scoped retrieval, Groq generation
+  seed.py               Demo users, patients, and sample documents
+  app.py                FastAPI application and API endpoints
+
 frontend/
-  index.html, style.css, app.js    Vanilla-JS SPA (landing, signup, login, chat, docs, admin)
-data/                  Chroma vector store + dev-only JWT secret (created at runtime, gitignored)
-docker-compose.yml      Postgres + app, for a one-command local/real deployment
-Dockerfile              App container image
+  index.html            Application interface
+  style.css             Frontend styling
+  app.js                Frontend functionality
+
+data/                   Chroma vector store and runtime data (gitignored)
+docker-compose.yml      PostgreSQL and application services
+Dockerfile              Application container image
 ```
 
-### How access control works
+## 🔐 How Access Control Works
 
-Every document row has `allowed_roles` (e.g. `clinician,admin`) and an optional `patient_id` (`NULL` = global, like a hospital guideline). Retrieval filters on both: a chunk is only returned if the caller's role is in `allowed_roles` **and** the chunk is either global or belongs to the conversation's patient. A `staff` conversation can never have a `patient_id`, so staff queries are structurally incapable of seeing patient data — not just hidden in the UI.
+Every document has an `allowed_roles` field (for example, `clinician,admin`) and an optional `patient_id`.
 
-### How multi-tenancy works
+- `NULL` patient ID represents a shared document, such as a hospital guideline.
+- Retrieval checks whether the user's role is allowed to access the document.
+- Retrieval also checks whether the document belongs to the selected patient or is shared.
+- Staff conversations cannot access patient-specific information.
 
-Every organization gets an `organizations` row; `users` and `patients` each carry an `organization_id`. The one chokepoint every client-supplied `patient_id` passes through is `_get_org_patient()` in `app.py` — it returns a patient only if it belongs to the caller's organization, otherwise 404. Every endpoint that accepts a `patient_id` (conversation creation, document upload/listing, patient lookup) goes through it, so there's a single place to audit for cross-tenant leaks rather than a scattered check per endpoint.
+This ensures that retrieval is filtered by both user role and patient context rather than relying only on frontend visibility.
 
-Documents and conversations don't carry `organization_id` directly — they inherit scoping transitively through the patient (or are global/shared, `patient_id IS NULL`, available to everyone).
+## 🏢 How Multi-Tenancy Works
 
-Signing up (`POST /signup`) creates a new organization and its first admin account atomically; an existing Postgres database upgraded to this schema gets all of its pre-existing users/patients backfilled into a single default organization (`db.ensure_default_organization()`), so this is a safe in-place upgrade, not a breaking migration.
+Every organization has an `organizations` record. Users and patients carry an `organization_id`.
 
-### How the grounding check works
+The `_get_org_patient()` function in `app.py` checks whether a requested patient belongs to the current user's organization. If the patient does not belong to that organization, the request returns a 404 response.
 
-After the LLM generates an answer, `rag.score_grounding()` compares the answer's significant words against the retrieved context's words (deterministic set overlap, no extra API call). High overlap → "high confidence"; low overlap → "low confidence". This is a heuristic safety net, not a substitute for review.
+This organization-level check is used by patient-related endpoints, including conversation creation, document upload/listing, and patient lookup.
 
-### Security hardening in place
+The signup flow creates a new organization and its first admin account. The organization admin can then create additional user accounts and assign roles.
 
-- **Rate limiting** (slowapi): Login capped separately (`LOGIN_RATE_LIMIT`, default 10/min) from general API traffic (`API_RATE_LIMIT`, default 120/min) to blunt brute-force and abuse.
-- **Security headers**: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` on every response; `Strict-Transport-Security` added automatically when `CAREFLOW_ENV=production`.
-- **CORS closed by default**: `ALLOWED_ORIGINS` is empty unless you set it — the frontend is served same-origin, so no cross-origin access is needed out of the box.
-- **Upload size cap**: 20MB (`MAX_UPLOAD_BYTES`), rejected with `413` before being read into memory.
-- **Production-gated JWT secret**: With `CAREFLOW_ENV=production`, the app refuses to boot without an explicit `JWT_SECRET` — no silent auto-generated fallback in production.
-- **Parameterized SQL** throughout (psycopg placeholders) — no string-built queries.
+## 🎯 How the Grounding Check Works
 
-## Setup
+After the LLM generates an answer, `rag.score_grounding()` compares significant words in the answer with words in the retrieved context.
 
-### Option A: Docker Compose (recommended — matches how this would actually deploy)
+- Higher overlap results in a higher confidence indicator.
+- Lower overlap results in a lower confidence indicator.
+
+This is a deterministic lexical-overlap heuristic and does not require an additional API call.
+
+**Important:** The confidence indicator is not a guarantee of correctness and does not replace professional review.
+
+## 🛡️ Security Hardening
+
+- **Rate limiting:** Login requests have a separate limit (`LOGIN_RATE_LIMIT`, default 10/min) from general API traffic (`API_RATE_LIMIT`, default 120/min).
+- **Security headers:** Includes `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy`.
+- **CORS closed by default:** `ALLOWED_ORIGINS` is empty unless explicitly configured.
+- **Upload size cap:** Uploads are limited to 20 MB using `MAX_UPLOAD_BYTES`.
+- **Production-gated JWT secret:** When `CAREFLOW_ENV=production`, the app requires an explicitly configured `JWT_SECRET`.
+- **Parameterized SQL:** Database queries use parameterized statements rather than string-built SQL.
+
+## 🚀 Setup
+
+### Prerequisites
+
+- Python 3.10 or later
+- Docker Desktop
+- Git
+- A Groq API key
+
+### Option A: Docker Compose (Recommended)
+
+Clone the repository:
 
 ```bash
+git clone https://github.com/Avantika-1812/careflow-ai.git
 cd careflow-ai
+```
+
+Create the environment file:
+
+```bash
 cp .env.example .env
-# Edit .env: set GROQ_API_KEY (get a free one at https://console.groq.com/keys)
+```
+
+Open `.env` and configure your `GROQ_API_KEY`.
+
+You can obtain an API key from:
+
+https://console.groq.com/keys
+
+Start the application:
+
+```bash
 docker compose up --build
 ```
 
-This starts Postgres and the app together. Open http://localhost:8000.
+Open the application in your browser:
 
-**On Windows**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL2 backend) and [Git for Windows](https://git-scm.com/download/win), then run the same commands above in a terminal (PowerShell, or Git Bash) — `copy .env.example .env` instead of `cp` in plain PowerShell. Everything else, including Option B below, is identical once Docker Desktop is running.
+```text
+http://localhost:8000
+```
 
-### Option B: Run locally against a Postgres container
+**On Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with the WSL2 backend and [Git for Windows](https://git-scm.com/download/win). In PowerShell, use:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then edit `.env`, configure your API key, and run:
+
+```powershell
+docker compose up --build
+```
+
+Make sure Docker Desktop is running before executing Docker commands.
+
+### Option B: Run Locally Against a PostgreSQL Container
 
 ```bash
+git clone https://github.com/Avantika-1812/careflow-ai.git
 cd careflow-ai
-python3 -m venv venv
+
+python -m venv venv
+```
+
+Activate the virtual environment.
+
+**Windows PowerShell:**
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+**Linux/macOS:**
+
+```bash
 source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Create the environment file:
+
+```bash
 cp .env.example .env
-# Set GROQ_API_KEY in .env
-docker compose up -d db          # Postgres only, exposed on localhost:5433
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Configure `GROQ_API_KEY` in `.env`.
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d db
+```
+
+Start the backend:
+
+```bash
 uvicorn backend.app:app --reload --port 8000
 ```
 
-Open http://localhost:8000. On first run the app creates the schema and seeds demo users, patients, and documents automatically.
+Open:
 
-**Demo accounts:**
+```text
+http://localhost:8000
+```
+
+On first run, the application initializes the database schema and seeds demo users, patients, and documents.
+
+## 👤 Demo Accounts
+
+The following accounts are available in the seeded demo environment:
 
 | Role | Username | Password |
 |---|---|---|
@@ -130,104 +256,111 @@ Open http://localhost:8000. On first run the app creates the schema and seeds de
 | Admin | `admin` | `admin123` |
 | Staff | `front.desk` | `staff123` |
 
-**Change or remove these before anything resembling a real deployment.**
+> **Security warning:** These are demonstration credentials. Change or remove them before any real deployment.
 
-## Data
+## 📊 Data Sources
 
-No real patient information is in this system. It's seeded from four sources, three of which are genuinely independent, free, publicly available datasets (not written by hand or by an LLM):
+No real patient information is included in this system. The project uses synthetic and publicly available sample datasets.
 
-- **Hand-written seed patients** (`backend/seed.py` + `documents/`): 3 small, fully fictional patients with hand-authored records/labs/prescriptions, for quick manual testing.
-- **Synthea-generated patients** (structured, synthetic): [Synthea](https://github.com/synthetichealth/synthea) is an open-source tool that generates realistic but entirely fictional patient populations — demographics, encounters, conditions, medications, observations — with no real PHI involved anywhere in the pipeline. Good for scale (dozens/hundreds of patients) and structured data (visit lists, medication timelines).
+### 1. Hand-Written Seed Patients
 
-  ```bash
-  # 1. Generate N synthetic patients as CSV (requires Java 17+)
-  curl -sL -o synthea.jar \
-    https://github.com/synthetichealth/synthea/releases/download/master-branch-latest/synthea-with-dependencies.jar
-  java -jar synthea.jar --exporter.csv.export=true --exporter.fhir.export=false -p 25 Massachusetts
+Located in `backend/seed.py` and `documents/`.
 
-  # 2. Import into CareFlow (converts Synthea's CSVs into patient_record/lab_report/prescription docs)
-  cd careflow-ai && source venv/bin/activate
-  python -m scripts.import_synthea ./output/csv
-  ```
+Includes three fictional patients with sample records, laboratory reports, and prescriptions for quick manual testing.
 
-- **MTSamples clinical reference library** (real, de-identified narrative text): [MTSamples](https://www.mtsamples.com/) is a public collection of approximately 5,000 de-identified medical transcription sample reports (H&Ps, discharge summaries, radiology reports, SOAP notes) across many specialties, widely used in clinical NLP research. Unlike Synthea's structured/templated output, this is unstructured clinical prose — a meaningfully different and harder test of retrieval quality. Imported as global reference documents (not attached to any one patient), visible to clinician/admin only.
+### 2. Synthea-Generated Patients
 
-  ```bash
-  # 1. Extract the source parquet to a local JSON cache (needs pyarrow, which may conflict
-  #    with this project's pinned numpy -- use a disposable venv rather than the project's own)
-  python3 -m venv /tmp/mtsamples-extract && /tmp/mtsamples-extract/bin/pip install pyarrow
-  /tmp/mtsamples-extract/bin/python3 -c "
-  import pyarrow.parquet as pq, json, re, urllib.request
-  from pathlib import Path
-  urls = [
-      'https://huggingface.co/datasets/anurag-raapid/mt-samples/resolve/main/data/train-00000-of-00001.parquet',
-      'https://huggingface.co/datasets/anurag-raapid/mt-samples/resolve/main/data/test-00000-of-00001.parquet',
-  ]
-  samples = []
-  for url in urls:
-      dest = Path('/tmp') / url.split('/')[-1]
-      urllib.request.urlretrieve(url, dest)
-      for text in pq.read_table(dest, columns=['text']).column('text').to_pylist():
-          name = re.search(r'Sample Name:\s*(.+)', text)
-          spec = re.search(r'Sample Type / Medical Specialty:\s*(.+)', text)
-          samples.append({'title': name.group(1).strip() if name else 'Untitled Sample',
-                           'specialty': spec.group(1).strip() if spec else 'General', 'text': text.strip()})
-  Path('careflow-ai/data/mtsamples_cache').mkdir(parents=True, exist_ok=True)
-  Path('careflow-ai/data/mtsamples_cache/samples.json').write_text(json.dumps(samples))
-  print(f'Wrote {len(samples)} samples')
-  "
+[Synthea](https://github.com/synthetichealth/synthea) is an open-source tool that generates realistic but entirely fictional patient populations.
 
-  # 2. Import into CareFlow
-  cd careflow-ai && source venv/bin/activate
-  python -m scripts.import_mtsamples
-  ```
+It can generate demographics, encounters, conditions, medications, and observations.
 
-- **Kaggle "Healthcare Dataset"** (synthetic): The [prasad22/healthcare-dataset](https://www.kaggle.com/datasets/prasad22/healthcare-dataset) on Kaggle contains 55,500 synthetic hospital admission records (name, age, condition, doctor, hospital, medication, billing, test results). Kaggle's own API needs a personal account + key, so this pulls from a public GitHub mirror of the same CSV instead (no auth needed). Good for demonstrating real-world *scale* — hundreds or thousands of patients rather than a handful — without needing Kaggle credentials.
+Generate synthetic patients (requires Java 17 or later):
 
-  ```bash
-  curl -sL -o data/kaggle_cache/healthcare_dataset.csv \
-    https://raw.githubusercontent.com/imranbdcse/healthcaredatasets/DataScience/healthcare_dataset.csv
+```bash
+curl -sL -o synthea.jar \
+  https://github.com/synthetichealth/synthea/releases/download/master-branch-latest/synthea-with-dependencies.jar
 
-  cd careflow-ai && source venv/bin/activate
-  python -m scripts.import_kaggle_healthcare --limit 5000   # fast demo-sized import
-  python -m scripts.import_kaggle_healthcare                # full 55,500 (slower: ~1 embed/row)
-  ```
+java -jar synthea.jar --exporter.csv.export=true --exporter.fhir.export=false -p 25 Massachusetts
+```
 
-**If the app is already running when you run any import script**, restart it afterwards. Chroma's already-open collection handle in that process won't see rows written by this separate process until it reopens the vector store file — this isn't a bug, just how a second process writing to the same SQLite-backed file behaves. (`rag.heal_vector_store_if_empty()` at startup catches the *empty* case, not this *stale* case.)
+Import into CareFlow AI:
 
-## Adding your own data
+```bash
+python -m scripts.import_synthea ./output/csv
+```
 
-- **Through the UI**: Log in as clinician/admin, select a patient, open **Documents** → **+ Upload document**, and upload a `.txt` or `.pdf`. It's chunked and searchable immediately.
-- **New users**: Admins create accounts from the **Users** tab (full name, username, temporary password, role).
-- **New patients**: Admins can add patients from the **+** button next to the patient search box (same pattern as Add User), or via `POST /patients` directly.
-- **Bulk patients**: See "Data" above for Synthea import, or edit `backend/seed.py` directly.
+### 3. MTSamples Clinical Reference Library
 
-## Known limitations / what's still missing before production
+[MTSamples](https://www.mtsamples.com/) provides publicly available de-identified medical transcription sample reports across multiple specialties.
 
-- **No billing/plans enforcement**: Organizations have a `plan` column (defaults to `'trial'`) but nothing reads it yet — every tenant currently has unlimited usage. Real monetization needs payment processing wired up deliberately (not something to bolt on casually).
-- **Usernames are globally unique**, not per-organization — two hospitals can't both have a user named `admin`. Real multi-tenant products usually scope login by email or an org-slug/subdomain instead; this was a deliberate simplification to avoid redesigning the login flow.
-- **No cross-tenant/platform-admin panel**: There's no "admin of admins" view to see all organizations, suspend one, or manage the shared reference library — only the org-scoped admin role exists today.
-- **No email verification or password reset** on signup — the self-serve flow trusts whatever username/email is entered.
-- **Auth**: PBKDF2 + JWT is reasonable, but a real deployment needs real identity (SSO/EHR integration, MFA), not hardcoded demo accounts.
-- **LLM provider**: Groq's free tier has no BAA. Swap to a HIPAA-eligible provider (Azure OpenAI, AWS Bedrock, etc.) under a signed BAA before any real PHI is involved — see the warning at top.
-- **TLS**: This app serves plain HTTP. A real deployment needs TLS termination (e.g. a reverse proxy or load balancer) in front of it, and `Strict-Transport-Security` alone doesn't add TLS.
-- **Encryption at rest**: Postgres and Chroma data aren't encrypted at the storage layer here — that needs to be configured at the infrastructure level (e.g. encrypted EBS/disk volumes).
-- **Embeddings**: Chroma's default embedding function is a reasonable baseline; production would likely use a domain-tuned or higher-quality embedding model.
-- **Document ingestion**: Upload supports `.txt`/`.pdf` text extraction only — no OCR for scanned records, no HL7/FHIR/EHR-export parsing.
-- **Hallucination mitigation**: The system prompt plus the grounding-overlap heuristic reduce but don't eliminate hallucination risk. The confidence badge is a lexical heuristic, not a semantic or model-verified check — a starting point for review, never a guarantee.
-- **Audit log retention/export**: Logs accumulate in Postgres with no retention policy or export tooling yet — needed for real compliance review workflows.
-- **Backups/DR**: No automated backup strategy configured for the Postgres volume yet.
-- **Chroma is a local-filesystem store, not a networked service**: Document *metadata* lives in Postgres (shared, networked), but the vector index lives in `data/chroma/` on whatever filesystem the app process can see. `docker-compose.yml` bind-mounts `./data` into the container for exactly this reason — the app (wherever it runs) and the vector store must share the same directory, or retrieval silently returns zero hits for documents that exist in Postgres but were never embedded on that filesystem. This also means **Chroma won't survive running multiple app replicas** behind a load balancer without a shared volume or a real networked vector DB (e.g. a hosted Chroma, Qdrant, or pgvector) — fine for one instance, not for scaling out.
+The collection includes examples such as discharge summaries, radiology reports, SOAP notes, and other clinical narratives.
 
-  ## 🎥 Project Demo
+These are imported as shared reference documents rather than being attached to individual patients.
 
-Watch the 5-minute demonstration of CareFlow AI:
+### 4. Kaggle Healthcare Dataset
 
-[▶️ Watch CareFlow AI Demo Video](https://drive.google.com/file/d/1PKQRJ3bZkrW4_EtybHB5yd6had0T4fU6/view?usp=sharing)
+The [Healthcare Dataset](https://www.kaggle.com/datasets/prasad22/healthcare-dataset) contains 55,500 synthetic hospital admission records.
 
-This video demonstrates the application's interface, patient document workflow, and AI-powered question-answering features.
+It can be useful for demonstrating larger datasets and patient-management workflows.
 
-> Demo uses synthetic patient data only. CareFlow AI is an information-support tool, not a diagnostic system.
-#   c a r e f l o w - a i 
- 
- 
+Download the CSV:
+
+```bash
+curl -sL -o data/kaggle_cache/healthcare_dataset.csv \
+  https://raw.githubusercontent.com/imranbdcse/healthcaredatasets/DataScience/healthcare_dataset.csv
+```
+
+Import a smaller dataset for a quick demonstration:
+
+```bash
+python -m scripts.import_kaggle_healthcare --limit 5000
+```
+
+Import the full dataset:
+
+```bash
+python -m scripts.import_kaggle_healthcare
+```
+
+**Note:** If the application is already running when you execute an import script, restart it afterwards so the application can reopen its Chroma vector-store connection.
+
+## ➕ Adding Your Own Data
+
+- **Upload documents:** Log in as a clinician or admin, select a patient, open Documents, and use the Upload Document option. Supported formats are `.txt` and `.pdf`.
+- **Add users:** Organization admins can create users from the Users tab by providing a name, username, temporary password, and role.
+- **Add patients:** Admins can add patients through the patient interface or using the `POST /patients` endpoint.
+- **Bulk patient import:** Use the Synthea import workflow described above or update `backend/seed.py`.
+
+## ⚠️ Known Limitations / What's Still Missing Before Production
+
+This project is a demonstration and development implementation. The following items require additional work before production use:
+
+- **No billing/plans enforcement:** Organizations have a `plan` column that defaults to `'trial'`, but usage limits and payment processing are not enforced.
+- **Globally unique usernames:** Usernames are globally unique rather than unique within each organization. Two organizations cannot currently have the same username.
+- **No cross-tenant platform-admin panel:** There is no platform-level interface to manage all organizations or suspend tenants.
+- **No email verification or password reset:** These workflows need to be implemented for production use.
+- **Authentication enhancements:** PBKDF2 and JWT provide a development authentication baseline. A production deployment should consider SSO, MFA, and appropriate identity-provider integration.
+- **LLM provider:** Groq's free tier does not provide a BAA. A suitable HIPAA-eligible provider under a signed BAA is required before processing real PHI.
+- **TLS:** The application serves plain HTTP locally. Production requires HTTPS/TLS termination through a properly configured reverse proxy or load balancer.
+- **Encryption at rest:** PostgreSQL and Chroma data are not encrypted at the storage layer by this repository. Infrastructure-level encryption must be configured.
+- **Embeddings:** Chroma's default embedding function is a baseline. Production may require a domain-tuned or higher-quality embedding model.
+- **Document ingestion:** Upload supports `.txt` and `.pdf` text extraction. OCR for scanned records and HL7/FHIR/EHR-export parsing are not implemented.
+- **Hallucination mitigation:** The system prompt and grounding-overlap heuristic reduce but do not eliminate hallucination risk. The confidence indicator is not a semantic or model-verified correctness check.
+- **Audit log retention/export:** Audit records are stored in PostgreSQL, but retention policies and export tooling are not yet implemented.
+- **Backups and disaster recovery:** An automated backup and recovery strategy for PostgreSQL volumes still needs to be configured.
+- **Chroma scaling:** Chroma currently uses a local-filesystem store in `data/chroma/`. The app and vector store must share the same persistent directory. Running multiple application replicas requires a shared volume or a networked vector database such as hosted Chroma, Qdrant, or pgvector.
+
+## 🔮 Future Improvements
+
+Potential future improvements include:
+
+- Integration with HL7/FHIR-compatible healthcare systems.
+- OCR support for scanned medical documents.
+- More advanced clinical embedding models.
+- Enhanced authentication with MFA and SSO.
+- Automated audit-log retention and export.
+- Database backup and disaster-recovery workflows.
+- Production-ready monitoring and deployment infrastructure.
+- Scalable networked vector database integration.
+
+> CareFlow AI is an information-support and academic demonstration project. It is not a diagnostic system, and clinical decisions must remain with qualified healthcare professionals.
